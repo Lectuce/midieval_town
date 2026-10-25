@@ -278,6 +278,169 @@ func AdvanceWorldTime(
 		}
 	}
 
+	// 查询当前世界正在运输的任务。
+	transportRows, err := tx.QueryContext(ctx, `
+		SELECT
+			id, cart_id,
+			destination_scene_id,
+			destination_x, destination_y, destination_floor,
+			started_at, arrive_at, revision
+		FROM transport_jobs
+		WHERE world_id = ? AND status = ?
+		ORDER BY id
+	`,
+		worldID,
+		TransportStatusInTransit,
+	)
+	if err != nil {
+		return World{}, fmt.Errorf(
+			"query active transports: %w", err,
+		)
+	}
+	defer transportRows.Close()
+
+	var arrivedJobs []TransportJob
+
+	for transportRows.Next() {
+		var job TransportJob
+		var rawStartedAt, rawArriveAt string
+
+		err := transportRows.Scan(
+			&job.ID,
+			&job.CartID,
+			&job.DestinationSceneID,
+			&job.DestinationPosition.X,
+			&job.DestinationPosition.Y,
+			&job.DestinationFloor,
+			&rawStartedAt,
+			&rawArriveAt,
+			&job.Revision,
+		)
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"scan active transport: %w", err,
+			)
+		}
+
+		job.StartedAt, err = time.Parse(
+			time.RFC3339Nano, rawStartedAt,
+		)
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"parse transport start time: %w", err,
+			)
+		}
+
+		job.ArriveAt, err = time.Parse(
+			time.RFC3339Nano, rawArriveAt,
+		)
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"parse transport arrival time: %w", err,
+			)
+		}
+
+		if !job.ArriveAt.After(job.StartedAt) {
+			return World{}, fmt.Errorf(
+				"transport %q has an invalid time range",
+				job.ID,
+			)
+		}
+
+		if !job.ArriveAt.After(nextTime) {
+			arrivedJobs = append(arrivedJobs, job)
+		}
+	}
+
+	if err := transportRows.Err(); err != nil {
+		return World{}, fmt.Errorf(
+			"read active transports: %w", err,
+		)
+	}
+
+	if err := transportRows.Close(); err != nil {
+		return World{}, fmt.Errorf(
+			"close active transports query: %w", err,
+		)
+	}
+
+	// 先关闭查询，再更新任务与货车。
+	for _, job := range arrivedJobs {
+		result, err := tx.ExecContext(ctx, `
+		UPDATE transport_jobs
+		SET status = ?,
+			revision = revision + 1
+		WHERE world_id = ?
+			AND id = ?
+			AND status = ?
+			AND revision = ?
+	`,
+			TransportStatusArrived,
+			worldID,
+			job.ID,
+			TransportStatusInTransit,
+			job.Revision,
+		)
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"complete transport %q: %w",
+				job.ID,
+				err,
+			)
+		}
+
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"read transport completion result: %w", err,
+			)
+		}
+		if affected != 1 {
+			return World{}, fmt.Errorf(
+				"transport %q changed during arrival",
+				job.ID,
+			)
+		}
+
+		result, err = tx.ExecContext(ctx, `
+			UPDATE carts
+			SET scene_id = ?,
+				position_x = ?,
+				position_y = ?,
+				floor = ?,
+				revision = revision + 1
+			WHERE world_id = ?
+				AND id = ?
+				AND repair_status = ?
+		`,
+			job.DestinationSceneID,
+			job.DestinationPosition.X,
+			job.DestinationPosition.Y,
+			job.DestinationFloor,
+			worldID,
+			job.CartID,
+			CartStatusReady,
+		)
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"move arriving cart: %w", err,
+			)
+		}
+
+		affected, err = result.RowsAffected()
+		if err != nil {
+			return World{}, fmt.Errorf(
+				"read arriving cart update result: %w", err,
+			)
+		}
+		if affected != 1 {
+			return World{}, fmt.Errorf(
+				"arriving cart %q is missing or not ready",
+				job.CartID,
+			)
+		}
+	}
+
 	// 5. 时间、维修记录、货车状态一起提交。
 	if err := tx.Commit(); err != nil {
 		return World{}, fmt.Errorf(

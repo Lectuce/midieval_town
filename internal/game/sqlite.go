@@ -269,6 +269,47 @@ CREATE TABLE IF NOT EXISTS repair_proposals (
 		REFERENCES repair_jobs(world_id, id)
 );
 
+
+CREATE TABLE IF NOT EXISTS transport_jobs (
+	world_id TEXT NOT NULL,
+	id TEXT NOT NULL,
+	cart_id TEXT NOT NULL,
+
+	from_location_id TEXT NOT NULL,
+	to_location_id TEXT NOT NULL,
+
+	destination_scene_id TEXT NOT NULL,
+	destination_x REAL NOT NULL,
+	destination_y REAL NOT NULL,
+	destination_floor INTEGER NOT NULL
+		CHECK (destination_floor BETWEEN 0 AND 3),
+
+	cargo_kg INTEGER NOT NULL
+		CHECK (typeof(cargo_kg) = 'integer' AND cargo_kg > 0),
+
+	status TEXT NOT NULL
+		CHECK (status IN ('in_transit', 'arrived')),
+
+	started_at TEXT NOT NULL,
+	arrive_at TEXT NOT NULL,
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, id),
+
+	FOREIGN KEY (world_id, cart_id)
+		REFERENCES carts(world_id, id),
+
+	FOREIGN KEY (world_id, destination_scene_id)
+		REFERENCES scenes(world_id, id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_transport_jobs_active_cart
+	ON transport_jobs(world_id, cart_id)
+	WHERE status = 'in_transit';
+
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

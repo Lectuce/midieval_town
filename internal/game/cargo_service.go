@@ -96,6 +96,33 @@ func LoadCartCargo(
 		)
 	}
 
+	var inTransit bool
+
+	err = tx.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM transport_jobs
+			WHERE world_id = ?
+				AND cart_id = ?
+				AND status = ?
+		)
+	`,
+		worldID,
+		cart.ID,
+		TransportStatusInTransit,
+	).Scan(&inTransit)
+	if err != nil {
+		return CargoLoadResult{}, fmt.Errorf(
+			"check cart transport before loading: %w",
+			err,
+		)
+	}
+	if inTransit {
+		return CargoLoadResult{}, fmt.Errorf(
+			"cannot load cargo while cart is in transit",
+		)
+	}
+
 	// 货车必须仍停在现场。
 	// 0.01 只是坐标浮点误差容差，不是玩家交互距离。
 	distance := math.Hypot(
