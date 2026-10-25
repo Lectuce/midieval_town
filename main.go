@@ -36,6 +36,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	world, err := game.GetWorld(ctx, db, config.World.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf(
+		"推进前：%s，版本：%d\n",
+		world.GameTime.Format("2006-01-02 15:04:05"),
+		world.Revision,
+	)
+
 	fmt.Println("世界初始化完成，已有存档保持不变")
 
 	fmt.Printf("配置加载成功：世界=%s，玩家=%d，NPC=%d\n",
