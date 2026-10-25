@@ -7,6 +7,7 @@ import (
 	"cybertown/internal/game"
 	"cybertown/internal/npc"
 	"cybertown/internal/rouster"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -39,6 +40,29 @@ func main() {
 	err = game.InitTransport(ctx, db, config.World.ID)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	repairJob, err := game.GetActiveRepairJob(
+		ctx,
+		db,
+		config.World.ID,
+		game.AbandonedCartID,
+	)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		fmt.Println("货车当前没有正在进行的维修")
+
+	case err != nil:
+		log.Fatal(err)
+
+	default:
+		fmt.Printf(
+			"维修任务：%s，维修者：%s，预计完成：%s\n",
+			repairJob.ID,
+			repairJob.WorkerNPCID,
+			repairJob.FinishAt.Format("2006-01-02 15:04:05"),
+		)
 	}
 
 	cart, err := game.GetCart(

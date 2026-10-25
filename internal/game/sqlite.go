@@ -157,7 +157,37 @@ CREATE TABLE IF NOT EXISTS cargo_stocks (
 		REFERENCES worlds(id)
 );
 
+CREATE TABLE IF NOT EXISTS repair_jobs (
+	world_id TEXT NOT NULL,
+	id TEXT NOT NULL,
+	cart_id TEXT NOT NULL,
+	worker_npc_id TEXT NOT NULL,
 
+	status TEXT NOT NULL
+		CHECK (status IN ('running', 'completed', 'cancelled')),
+
+	started_at TEXT NOT NULL,
+	finish_at TEXT NOT NULL,
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, id),
+
+	FOREIGN KEY (world_id, cart_id)
+		REFERENCES carts(world_id, id),
+
+	FOREIGN KEY (world_id, worker_npc_id)
+		REFERENCES npcs(world_id, id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_repair_jobs_running_cart
+	ON repair_jobs(world_id, cart_id)
+	WHERE status = 'running';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_repair_jobs_running_worker
+	ON repair_jobs(world_id, worker_npc_id)
+	WHERE status = 'running';
 
 
 `
