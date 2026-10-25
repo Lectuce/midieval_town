@@ -443,7 +443,7 @@ func _finish_cart_response(payload: String) -> void:
 			if saved_player is Dictionary and investigation is Dictionary:
 				latest_player = saved_player
 				cart_inspected = true
-				cart_status = "已确认失踪货车的位置。"
+				cart_status = str(investigation.get("message", "调查结果缺少提示信息。"))
 			else:
 				cart_status = "调查响应格式错误，请按 E 重试。"
 		"conflict":
