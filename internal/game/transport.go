@@ -21,6 +21,11 @@ const (
 	CartSiteFloor           = 0
 	CartSiteX       float64 = -5
 	CartSiteY       float64 = -96
+
+	WarehouseSceneID         = "town"
+	WarehouseFloor           = 0
+	WarehouseX       float64 = 472
+	WarehouseY       float64 = -24
 )
 
 type Cart struct {
