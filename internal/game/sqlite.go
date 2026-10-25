@@ -117,6 +117,48 @@ CREATE TABLE IF NOT EXISTS player_item_claims (
         REFERENCES players(world_id, id)
 );
 
+CREATE TABLE IF NOT EXISTS carts (
+	world_id TEXT NOT NULL,
+	id TEXT NOT NULL,
+	scene_id TEXT NOT NULL,
+	position_x REAL NOT NULL,
+	position_y REAL NOT NULL,
+	floor INTEGER NOT NULL CHECK (floor BETWEEN 0 AND 3),
+
+	repair_status TEXT NOT NULL
+		CHECK (repair_status IN ('damaged', 'repairing', 'ready')),
+
+	capacity_kg INTEGER NOT NULL
+		CHECK (typeof(capacity_kg) = 'integer' AND capacity_kg > 0),
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, id),
+
+	FOREIGN KEY (world_id, scene_id)
+		REFERENCES scenes(world_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS cargo_stocks (
+	world_id TEXT NOT NULL,
+	location_id TEXT NOT NULL,
+	item_id TEXT NOT NULL,
+
+	quantity_kg INTEGER NOT NULL
+		CHECK (typeof(quantity_kg) = 'integer' AND quantity_kg >= 0),
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, location_id, item_id),
+
+	FOREIGN KEY (world_id)
+		REFERENCES worlds(id)
+);
+
+
+
 
 `
 

@@ -36,6 +36,40 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = game.InitTransport(ctx, db, config.World.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cart, err := game.GetCart(
+		ctx,
+		db,
+		config.World.ID,
+		game.AbandonedCartID,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stock, err := game.GetCargoStock(
+		ctx,
+		db,
+		config.World.ID,
+		game.CargoLocationCartSite,
+		game.IronOreItemID,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf(
+		"货车：%s，状态：%s，载重：%d 千克，现场铁矿：%d 千克\n",
+		cart.ID,
+		cart.RepairStatus,
+		cart.CapacityKg,
+		stock.QuantityKg,
+	)
+
 	world, err := game.GetWorld(ctx, db, config.World.ID)
 	if err != nil {
 		log.Fatal(err)
