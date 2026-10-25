@@ -204,7 +204,70 @@ CREATE TABLE IF NOT EXISTS npc_inventory (
 
 	FOREIGN KEY (world_id, npc_id)
 		REFERENCES npcs(world_id, id)
-);	
+);
+
+CREATE TABLE IF NOT EXISTS repair_proposals (
+	world_id TEXT NOT NULL,
+	id TEXT NOT NULL,
+	cart_id TEXT NOT NULL,
+
+	payer_npc_id TEXT NOT NULL,
+	worker_npc_id TEXT NOT NULL,
+
+	price_coins INTEGER NOT NULL
+		CHECK (typeof(price_coins) = 'integer' AND price_coins >= 0),
+
+	material_count INTEGER NOT NULL
+		CHECK (typeof(material_count) = 'integer' AND material_count > 0),
+
+	duration_minutes INTEGER NOT NULL
+		CHECK (
+			typeof(duration_minutes) = 'integer'
+			AND duration_minutes BETWEEN 1 AND 1440
+		),
+
+	payer_confirmed INTEGER NOT NULL DEFAULT 0
+		CHECK (payer_confirmed IN (0, 1)),
+
+	worker_confirmed INTEGER NOT NULL DEFAULT 0
+		CHECK (worker_confirmed IN (0, 1)),
+
+	status TEXT NOT NULL DEFAULT 'proposed'
+		CHECK (
+			status IN ('proposed', 'confirmed', 'executed', 'cancelled')
+		),
+
+	repair_job_id TEXT,
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, id),
+
+	CHECK (payer_npc_id <> worker_npc_id),
+
+	CHECK (
+		status NOT IN ('confirmed', 'executed')
+		OR (payer_confirmed = 1 AND worker_confirmed = 1)
+	),
+
+	CHECK (
+		(status = 'executed' AND repair_job_id IS NOT NULL)
+		OR (status <> 'executed' AND repair_job_id IS NULL)
+	),
+
+	FOREIGN KEY (world_id, cart_id)
+		REFERENCES carts(world_id, id),
+
+	FOREIGN KEY (world_id, payer_npc_id)
+		REFERENCES npcs(world_id, id),
+
+	FOREIGN KEY (world_id, worker_npc_id)
+		REFERENCES npcs(world_id, id),
+
+	FOREIGN KEY (world_id, repair_job_id)
+		REFERENCES repair_jobs(world_id, id)
+);
 
 `
 
