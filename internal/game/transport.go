@@ -63,6 +63,13 @@ type CargoLoadResult struct {
 	WorldRevision int64      `json:"world_revision"`
 }
 
+type CargoUnloadResult struct {
+	UnloadedKg     int64      `json:"unloaded_kg"`
+	CartCargo      CargoStock `json:"cart_cargo"`
+	WarehouseCargo CargoStock `json:"warehouse_cargo"`
+	WorldRevision  int64      `json:"world_revision"`
+}
+
 type TransportJob struct {
 	WorldID string `json:"world_id"`
 	ID      string `json:"id"`
