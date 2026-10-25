@@ -16,6 +16,14 @@ type InventoryItem struct {
 	Quantity int64  `json:"quantity"`
 }
 
+// 服务端读取的 NPC 库存条目。
+type NPCInventoryItem struct {
+	ItemID   string `json:"item_id"`
+	Name     string `json:"name"`
+	Quantity int64  `json:"quantity"`
+	Revision int64  `json:"revision"`
+}
+
 func GetItemDefinition(itemID string) (ItemDefinition, error) {
 	switch itemID {
 	case "shipment_receipt":
@@ -30,6 +38,13 @@ func GetItemDefinition(itemID string) (ItemDefinition, error) {
 			ID:          "coin",
 			Name:        "金币",
 			Description: "完成委托获得的报酬。",
+		}, nil
+
+	case "repair_material":
+		return ItemDefinition{
+			ID:          "repair_material",
+			Name:        "修车材料",
+			Description: "用于维修货车的木料、铁钉等材料，按份计数。",
 		}, nil
 
 	default:

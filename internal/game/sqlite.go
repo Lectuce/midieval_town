@@ -189,6 +189,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_repair_jobs_running_worker
 	ON repair_jobs(world_id, worker_npc_id)
 	WHERE status = 'running';
 
+CREATE TABLE IF NOT EXISTS npc_inventory (
+	world_id TEXT NOT NULL,
+	npc_id TEXT NOT NULL,
+	item_id TEXT NOT NULL,
+
+	quantity INTEGER NOT NULL
+		CHECK (typeof(quantity) = 'integer' AND quantity >= 0),
+
+	revision INTEGER NOT NULL DEFAULT 1
+		CHECK (revision >= 1),
+
+	PRIMARY KEY (world_id, npc_id, item_id),
+
+	FOREIGN KEY (world_id, npc_id)
+		REFERENCES npcs(world_id, id)
+);	
 
 `
 

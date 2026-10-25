@@ -42,6 +42,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = game.InitNPCInventory(ctx, db, config.World.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	repairJob, err := game.GetActiveRepairJob(
 		ctx,
 		db,
