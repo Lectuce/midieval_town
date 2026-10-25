@@ -16,6 +16,11 @@ const (
 	// 单位统一为千克。
 	InitialIronOreKg    int64 = 100
 	InitialCartCapacity int64 = 100
+
+	CartSiteSceneID         = "town"
+	CartSiteFloor           = 0
+	CartSiteX       float64 = -5
+	CartSiteY       float64 = -96
 )
 
 type Cart struct {
@@ -35,4 +40,11 @@ type CargoStock struct {
 	ItemID     string `json:"item_id"`
 	QuantityKg int64  `json:"quantity_kg"`
 	Revision   int64  `json:"revision"`
+}
+
+type CargoLoadResult struct {
+	LoadedKg      int64      `json:"loaded_kg"`
+	SiteCargo     CargoStock `json:"site_cargo"`
+	CartCargo     CargoStock `json:"cart_cargo"`
+	WorldRevision int64      `json:"world_revision"`
 }
