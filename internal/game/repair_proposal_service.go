@@ -174,6 +174,36 @@ func ConfirmRepairProposal(
 		return RepairProposal{}, ErrRepairProposalParticipant
 	}
 
+	// 付款方必须实际收到过报价，不能仅因为名字在报价里就确认。
+	// 工作者创建报价并确认自己，不经过这个检查。
+	if actorNPCID == proposal.PayerNPCID {
+		var received bool
+
+		err := db.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM repair_proposal_deliveries
+				WHERE world_id = ?
+					AND proposal_id = ?
+					AND recipient_npc_id = ?
+					AND received_at IS NOT NULL
+			)
+		`,
+			worldID,
+			proposalID,
+			actorNPCID,
+		).Scan(&received)
+		if err != nil {
+			return RepairProposal{}, fmt.Errorf(
+				"check repair proposal receipt: %w", err,
+			)
+		}
+
+		if !received {
+			return RepairProposal{}, ErrRepairProposalDeliveryDenied
+		}
+	}
+
 	if proposal.Revision != expectedRevision {
 		return RepairProposal{}, fmt.Errorf(
 			"%w: expected %d, current %d",

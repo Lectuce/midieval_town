@@ -104,6 +104,45 @@ var NPCTools = []anthropic.ToolParam{
 			},
 		},
 	},
+
+	{
+		Name: "get_received_repair_proposals",
+		Description: anthropic.String(
+			"仅马丁可用。查询玩家已经明确转交给自己的维修报价，" +
+				"同时返回本人的当前资金。" +
+				"不返回尚未送达的报价，也不执行接受、付款或维修。",
+		),
+		InputSchema: anthropic.ToolInputSchemaParam{
+			Type:       "object",
+			Properties: map[string]any{},
+			Required:   []string{},
+		},
+	},
+	{
+		Name: "accept_repair_proposal",
+		Description: anthropic.String(
+			"仅马丁可用。接受一份已收到的维修报价，确认自己作为付款方的意愿。" +
+				"必须先查询实际报价，使用返回的报价ID和版本。" +
+				"可以拒绝，不必接受每份报价。" +
+				"成功只表示接受条款，不表示已经付款或开始维修。",
+		),
+		InputSchema: anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"proposal_id": map[string]any{
+					"type": "string",
+				},
+				"expected_revision": map[string]any{
+					"type":    "integer",
+					"minimum": 1,
+				},
+			},
+			Required: []string{
+				"proposal_id",
+				"expected_revision",
+			},
+		},
+	},
 }
 
 var NPCToolsDefinitions = map[string][]anthropic.ToolUnionParam{

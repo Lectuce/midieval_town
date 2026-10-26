@@ -49,6 +49,22 @@ func BuildToolHandlers(db *sql.DB) map[string]engine.ToolHandler {
 		return proposeCartRepair(ctx, db, scope, input)
 	}
 
+	handlers["get_received_repair_proposals"] = func(
+		ctx context.Context,
+		scope engine.Scope,
+		input map[string]any,
+	) (string, error) {
+		return getReceivedRepairProposals(ctx, db, scope, input)
+	}
+
+	handlers["accept_repair_proposal"] = func(
+		ctx context.Context,
+		scope engine.Scope,
+		input map[string]any,
+	) (string, error) {
+		return acceptRepairProposal(ctx, db, scope, input)
+	}
+
 	return handlers
 }
 
