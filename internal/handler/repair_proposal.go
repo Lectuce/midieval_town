@@ -52,3 +52,26 @@ func DeliverRepairProposalHandler(db *sql.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+func PlayerRepairProposalsHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cards, err := game.GetPlayerRepairProposals(
+			c.Request.Context(),
+			db,
+			"town-1",
+			"player-1",
+		)
+		if err != nil {
+			log.Printf("load player repair proposals: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "报价查询失败。",
+			})
+			return
+		}
+
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, gin.H{
+			"repair_proposals": cards,
+		})
+	}
+}

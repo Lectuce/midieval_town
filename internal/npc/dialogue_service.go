@@ -32,9 +32,10 @@ type ChatRequest struct {
 }
 
 type ChatResponse struct {
-	NPCID     string `json:"npc_id"`
-	RequestID string `json:"request_id"`
-	Reply     string `json:"reply"`
+	NPCID           string                    `json:"npc_id"`
+	RequestID       string                    `json:"request_id"`
+	Reply           string                    `json:"reply"`
+	RepairProposals []game.RepairProposalCard `json:"repair_proposals"`
 }
 
 // 哪一组对话
@@ -168,6 +169,16 @@ func (s *DialogueService) Chat(
 		if previousInput != req.Message {
 			return ChatResponse{}, ErrRequestConflict
 		}
+
+		response.RepairProposals, err = game.GetPlayerRepairProposals(
+			ctx, s.db, req.WorldID, req.PlayerID,
+		)
+		if err != nil {
+			return ChatResponse{}, fmt.Errorf(
+				"load repair proposal cards: %w", err,
+			)
+		}
+
 		return response, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -273,6 +284,20 @@ func (s *DialogueService) Chat(
 	)
 	if err != nil {
 		return ChatResponse{}, fmt.Errorf("save dialogue turn: %w", err)
+	}
+
+	// 保存对话成功后，读取玩家已经取得的报价。
+	response.RepairProposals, err = game.GetPlayerRepairProposals(
+		ctx,
+		s.db,
+		req.WorldID,
+		req.PlayerID,
+	)
+	if err != nil {
+		return ChatResponse{}, fmt.Errorf(
+			"load repair proposal cards: %w",
+			err,
+		)
 	}
 
 	return response, nil

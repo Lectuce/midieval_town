@@ -139,3 +139,85 @@ func GetReceivedRepairProposals(
 
 	return proposals, nil
 }
+
+// 给玩家界面展示的报价。
+// RepairProposal 的 JSON 字段会直接展开在外层。
+type RepairProposalCard struct {
+	RepairProposal
+	Delivered bool `json:"delivered"`
+}
+
+func GetPlayerRepairProposals(
+	ctx context.Context,
+	db *sql.DB,
+	worldID string,
+	playerID string,
+) ([]RepairProposalCard, error) {
+	if worldID == "" || playerID == "" {
+		return nil, fmt.Errorf("world id and player id are required")
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT
+			p.world_id,
+			p.id,
+			p.cart_id,
+			p.payer_npc_id,
+			p.worker_npc_id,
+			p.price_coins,
+			p.material_count,
+			p.duration_minutes,
+			p.payer_confirmed,
+			p.worker_confirmed,
+			p.status,
+			COALESCE(p.repair_job_id, ''),
+			p.revision,
+			d.received_at IS NOT NULL
+		FROM repair_proposal_deliveries AS d
+		JOIN repair_proposals AS p
+			ON p.world_id = d.world_id
+			AND p.id = d.proposal_id
+		WHERE d.world_id = ?
+			AND d.player_id = ?
+			AND d.recipient_npc_id = p.payer_npc_id
+		ORDER BY d.rowid DESC
+		LIMIT 20
+	`, worldID, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("query player repair proposals: %w", err)
+	}
+	defer rows.Close()
+
+	cards := make([]RepairProposalCard, 0)
+
+	for rows.Next() {
+		var card RepairProposalCard
+
+		if err := rows.Scan(
+			&card.WorldID,
+			&card.ID,
+			&card.CartID,
+			&card.PayerNPCID,
+			&card.WorkerNPCID,
+			&card.PriceCoins,
+			&card.MaterialCount,
+			&card.DurationMinutes,
+			&card.PayerConfirmed,
+			&card.WorkerConfirmed,
+			&card.Status,
+			&card.RepairJobID,
+			&card.Revision,
+			&card.Delivered,
+		); err != nil {
+			return nil, fmt.Errorf("scan player repair proposal: %w", err)
+		}
+
+		cards = append(cards, card)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read player repair proposals: %w", err)
+	}
+
+	return cards, nil
+}
