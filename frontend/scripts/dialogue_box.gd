@@ -4,6 +4,7 @@ const MAX_MESSAGES := 60
 const QUEST_ID := "missing_iron_cart"
 const INPUT_HINT := "Enter：发送    Esc：结束对话    输入时 E 和方向键用于编辑文字"
 var stream := preload("res://scripts/web_dialogue_stream.gd").new()
+var repair_ui := preload("res://scripts/repair_proposal_panel.gd").new()
 var waiting: bool = false
 var request_id: String = ""
 var reply_index: int = -1
@@ -92,6 +93,7 @@ func _ready() -> void:
 	quest_button.pressed.connect(_on_quest_pressed)
 	quest_panel.add_child(quest_button)
 	quest_panel.hide()
+	column.add_child(repair_ui)
 	var row := HBoxContainer.new()
 	column.add_child(row)
 	input_field = LineEdit.new()
@@ -140,7 +142,9 @@ func open(npc: Node2D) -> void:
 	footer_label.text = INPUT_HINT
 	panel.show()
 	quest_panel.visible = str(npc.npc_id) == "merchant"
-	panel.offset_top = -420 if quest_panel.visible else -330
+	var has_repair_panel := str(npc.npc_id) in ["blacksmith", "merchant"]
+	panel.offset_top = -600 if has_repair_panel else -330
+	repair_ui.open_for(str(npc.npc_id), _quest_base_url())
 	quest_status = ""
 	quest_completion_message = ""
 	quest_reconcile_reason = ""
@@ -367,6 +371,9 @@ func _render_messages() -> void:
 func send_message(text: String) -> void:
 	if not active or waiting or not is_instance_valid(speaker):
 		return
+	if repair_ui.busy:
+		footer_label.text = "请等待报价请求完成。"
+		return
 	var message := text.strip_edges().left(input_field.max_length)
 	if message.is_empty() or is_ime_composing():
 		return
@@ -405,8 +412,13 @@ func _on_stream_event(id: String, event: String, data: Dictionary) -> void:
 				return
 			reply_text = data["reply"]
 			_update_reply(reply_text)
+			var cards = data.get("repair_proposals")
+			if cards is Array:
+				repair_ui.show_cards(cards)
 			_finish_request()
 			footer_label.text = INPUT_HINT
+			if not cards is Array:
+				footer_label.text = "回复已收到，但缺少报价数据，请刷新报价。"
 		"error":
 			_fail_request(str(data.get("message", data.get("error", "网络请求失败。"))))
 
@@ -434,6 +446,7 @@ func _set_waiting(value: bool) -> void:
 	send_button.text = "回复中…" if value else "发送"
 	input_field.editable = not value
 	next_button.disabled = value or line_index + 1 >= lines.size()
+	repair_ui.set_chat_waiting(value)
 
 func _cancel_request() -> void:
 	request_id = ""
@@ -453,6 +466,7 @@ func advance() -> void:
 func close() -> void:
 	_cancel_request()
 	_cancel_quest_request()
+	repair_ui.close_panel()
 	active = false
 	speaker = null
 	input_field.release_focus()
@@ -460,5 +474,6 @@ func close() -> void:
 
 func _exit_tree() -> void:
 	_cancel_quest_request()
+	repair_ui.close_panel()
 	request_id = ""
 	stream.cancel()

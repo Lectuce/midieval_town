@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d34ynv73j78nd" path="res://assets/Tiles/tile_0108.png" id="3_fc0e3"]
 [ext_resource type="Texture2D" uid="uid://y4rk3hsu4v8h" path="res://assets/Tiles/tile_0110.png" id="4_7jktm"]
 [ext_resource type="PackedScene" uid="uid://l223k0nuf2s5" path="res://player.tscn" id="5_7jktm"]
-[ext_resource type="TileSet" uid="uid://bvu5l6lqopgss" path="res://assets/TileSets/trees_sorted.tres" id="trees_sorted"]
+[ext_resource type="TileSet" path="res://assets/TileSets/trees_sorted.tres" id="trees_sorted"]
 [ext_resource type="Script" uid="uid://d00j8tvqi5yn5" path="res://scripts/world_controller.gd" id="world_controller"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_87v1x"]
@@ -2221,6 +2221,9 @@ position = Vector2(-1, -22)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="MissingCart/StaticBody2D" unique_id=222192901]
 position = Vector2(8.5, 19)
 shape = SubResource("RectangleShape2D_05h45")
+
+[node name="WarehouseDropoff" type="Marker2D" parent="." unique_id=1456386815]
+position = Vector2(472, -24)
 
 [editable path="Guard"]
 [editable path="Player"]

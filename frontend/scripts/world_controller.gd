@@ -166,6 +166,9 @@ globalThis.TownCartPosition = {
 """
 
 func _ready() -> void:
+	# Backend town coordinates are relative to Game, which has its own offset.
+	var warehouse_position := to_local($WarehouseDropoff.global_position)
+	print("仓库交付点的小镇坐标：", warehouse_position)
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	configure_map_bounds()
 	configure_camera()
