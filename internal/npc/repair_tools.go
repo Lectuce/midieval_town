@@ -212,6 +212,32 @@ func proposeCartRepair(
 		}
 	}
 
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO repair_proposal_deliveries (
+			world_id,
+			proposal_id,
+			player_id,
+			recipient_npc_id,
+			source_turn_id
+		)
+		VALUES (?, ?, ?, ?, ?)
+		ON CONFLICT (
+			world_id, proposal_id, player_id, recipient_npc_id
+		) DO NOTHING
+	`,
+		proposal.WorldID,
+		proposal.ID,
+		scope.PlayerID,
+		proposal.PayerNPCID,
+		scope.TurnID,
+	)
+	if err != nil {
+		return "", fmt.Errorf(
+			"record repair proposal delivery source: %w",
+			err,
+		)
+	}
+
 	log.Printf(
 		"NPC repair offer turn=%s npc=%s proposal=%s "+
 			"price=%d materials=%d minutes=%d "+

@@ -290,7 +290,8 @@ func ConfirmRepairProposal(
 		)
 	}
 
-	if err := tx.Commit(); err != nil {
+	err = tx.Commit()
+	if err != nil {
 		return RepairProposal{}, fmt.Errorf(
 			"commit repair confirmation: %w", err,
 		)
