@@ -54,6 +54,56 @@ var NPCTools = []anthropic.ToolParam{
 			Required:   []string{},
 		},
 	},
+
+	{
+		Name: "get_my_repair_resources",
+		Description: anthropic.String(
+			"查询当前角色自己的资金和修车材料。" +
+				"仅商人马丁、铁匠罗兰可使用。" +
+				"不能查询其他角色的库存，也不会转移资源。",
+		),
+		InputSchema: anthropic.ToolInputSchemaParam{
+			Type:       "object",
+			Properties: map[string]any{},
+			Required:   []string{},
+		},
+	},
+	{
+		Name: "propose_cart_repair",
+		Description: anthropic.String(
+			"铁匠罗兰提出一份由马丁付款、罗兰提供材料的货车维修报价，" +
+				"并确认本人愿意按该条件维修。" +
+				"调用前先查询自己的资源。" +
+				"只确认罗兰本人，不代表马丁同意、收到提议或已经付款。" +
+				"不会开始维修。每轮对话最多创建一份报价。",
+		),
+		InputSchema: anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"price_coins": map[string]any{
+					"type":        "integer",
+					"minimum":     0,
+					"description": "向马丁提出的维修费用。",
+				},
+				"material_count": map[string]any{
+					"type":        "integer",
+					"minimum":     1,
+					"description": "罗兰愿意提供并在开工时消耗的材料份数。",
+				},
+				"duration_minutes": map[string]any{
+					"type":        "integer",
+					"minimum":     1,
+					"maximum":     1440,
+					"description": "从实际开工起计算的游戏分钟数。",
+				},
+			},
+			Required: []string{
+				"price_coins",
+				"material_count",
+				"duration_minutes",
+			},
+		},
+	},
 }
 
 var NPCToolsDefinitions = map[string][]anthropic.ToolUnionParam{

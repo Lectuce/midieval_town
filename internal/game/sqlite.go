@@ -310,6 +310,30 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_transport_jobs_active_cart
 	WHERE status = 'in_transit';
 
 
+CREATE TABLE IF NOT EXISTS repair_proposal_deliveries (
+    world_id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    recipient_npc_id TEXT NOT NULL,
+    source_turn_id TEXT NOT NULL,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    received_at TEXT,
+
+    PRIMARY KEY (
+        world_id, proposal_id, player_id, recipient_npc_id
+    ),
+
+    FOREIGN KEY (world_id, proposal_id)
+        REFERENCES repair_proposals(world_id, id),
+
+    FOREIGN KEY (world_id, player_id)
+        REFERENCES players(world_id, id),
+
+    FOREIGN KEY (world_id, recipient_npc_id)
+        REFERENCES npcs(world_id, id)
+);
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

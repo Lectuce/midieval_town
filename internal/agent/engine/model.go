@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -50,13 +49,13 @@ func (m *LLM) GenerateStream(
 
 	for stream.Next() {
 		event := stream.Current()
-		if event.Type == "content_block_delta" {
-			log.Printf(
-				"NPC stream delta_type=%s text_bytes=%d",
-				event.Delta.Type,
-				len(event.Delta.Text),
-			)
-		}
+		// if event.Type == "content_block_delta" {
+		// 	log.Printf(
+		// 		"NPC stream delta_type=%s text_bytes=%d",
+		// 		event.Delta.Type,
+		// 		len(event.Delta.Text),
+		// 	)
+		// }
 		// 将所有事件累积成完整消息，
 		// 供后续工具执行和历史保存使用。
 		err := message.Accumulate(event)

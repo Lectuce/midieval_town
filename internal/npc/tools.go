@@ -33,6 +33,22 @@ func BuildToolHandlers(db *sql.DB) map[string]engine.ToolHandler {
 		return getKnownFacts(ctx, db, scope, input)
 	}
 
+	handlers["get_my_repair_resources"] = func(
+		ctx context.Context,
+		scope engine.Scope,
+		input map[string]any,
+	) (string, error) {
+		return getMyRepairResources(ctx, db, scope, input)
+	}
+
+	handlers["propose_cart_repair"] = func(
+		ctx context.Context,
+		scope engine.Scope,
+		input map[string]any,
+	) (string, error) {
+		return proposeCartRepair(ctx, db, scope, input)
+	}
+
 	return handlers
 }
 
