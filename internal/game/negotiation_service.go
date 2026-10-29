@@ -452,11 +452,10 @@ func getNegotiationTx(
 			current_proposal_id,
 			current_proposal_revision,
 			status,
-			next_actor_id,
+			COALESCE(next_actor_id, ''),
 			round_count,
 			director_calls,
 			revision,
-			end_reason,
 			created_at
 		FROM negotiations
 		WHERE world_id = ? AND id = ?
@@ -478,7 +477,6 @@ func getNegotiationTx(
 		&n.RoundCount,
 		&n.DirectorCalls,
 		&n.Revision,
-		&n.EndReason,
 		&n.CreatedAt,
 	)
 
