@@ -337,7 +337,48 @@ CREATE TABLE IF NOT EXISTS repair_proposal_deliveries (
 
 	CREATE INDEX IF NOT EXISTS idx_repair_coordination_pending
 		ON repair_coordination_events(status, created_at);
+CREATE TABLE IF NOT EXISTS repair_coordination_events (
+    world_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    proposal_id TEXT NOT NULL,
+    proposal_revision INTEGER NOT NULL,
 
+    player_id TEXT NOT NULL,
+    actor_npc_id TEXT NOT NULL,
+    recipient_npc_id TEXT NOT NULL,
+    source_turn_id TEXT NOT NULL,
+
+    decision TEXT NOT NULL
+        CHECK (decision IN ('reject', 'request_revision')),
+    reason TEXT NOT NULL,
+
+    status TEXT NOT NULL CHECK (
+        status IN (
+            'pending', 'processing', 'delivered',
+            'waiting', 'blocked', 'failed',
+            'stale', 'superseded'
+        )
+    ),
+
+    attempts INTEGER NOT NULL DEFAULT 0,
+    plan_action TEXT NOT NULL DEFAULT '',
+    plan_reason TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+
+    PRIMARY KEY (world_id, id),
+
+    FOREIGN KEY (world_id, proposal_id)
+        REFERENCES repair_proposals(world_id, id),
+
+    FOREIGN KEY (world_id, player_id)
+        REFERENCES players(world_id, id),
+
+    FOREIGN KEY (world_id, actor_npc_id)
+        REFERENCES npcs(world_id, id),
+
+    FOREIGN KEY (world_id, recipient_npc_id)
+        REFERENCES npcs(world_id, id)
+);
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

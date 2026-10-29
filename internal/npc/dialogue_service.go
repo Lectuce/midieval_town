@@ -246,6 +246,21 @@ func (s *DialogueService) Chat(
 		)
 	}
 
+	repairFacts, err := game.GetRepairCoordinationFacts(
+		ctx,
+		s.db,
+		character.WorldID,
+		character.ID,
+	)
+	if err != nil {
+		return ChatResponse{}, fmt.Errorf(
+			"load repair coordination messages: %w",
+			err,
+		)
+	}
+
+	facts = append(facts, repairFacts...)
+
 	result, err := s.agent.Reply(ctx, character, player, facts, history, req, onText)
 	if err != nil {
 		return ChatResponse{}, fmt.Errorf("NPC reply: %w", err)
