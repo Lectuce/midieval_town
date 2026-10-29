@@ -335,8 +335,7 @@ CREATE TABLE IF NOT EXISTS repair_proposal_deliveries (
 );
 
 
-	CREATE INDEX IF NOT EXISTS idx_repair_coordination_pending
-		ON repair_coordination_events(status, created_at);
+
 CREATE TABLE IF NOT EXISTS repair_coordination_events (
     world_id TEXT NOT NULL,
     id TEXT NOT NULL,
@@ -379,6 +378,9 @@ CREATE TABLE IF NOT EXISTS repair_coordination_events (
     FOREIGN KEY (world_id, recipient_npc_id)
         REFERENCES npcs(world_id, id)
 );
+
+	CREATE INDEX IF NOT EXISTS idx_repair_coordination_pending
+		ON repair_coordination_events(status, created_at);
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {
