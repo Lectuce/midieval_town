@@ -121,3 +121,64 @@ func acceptRepairProposal(
 
 	return string(raw), nil
 }
+
+func respondToRepairProposal(
+	ctx context.Context,
+	db *sql.DB,
+	scope engine.Scope,
+	input map[string]any,
+) (string, error) {
+	if scope.AgentKind != "npc" || scope.AgentID != "merchant" {
+		return "", fmt.Errorf("only the merchant can use this tool")
+	}
+
+	var args struct {
+		ProposalID       string `json:"proposal_id"`
+		ExpectedRevision int64  `json:"expected_revision"`
+		Decision         string `json:"decision"`
+		Reason           string `json:"reason"`
+	}
+
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return "", err
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&args); err != nil {
+		return "", err
+	}
+
+	event, err := game.RecordRepairResponse(
+		ctx,
+		db,
+		scope.WorldID,
+		scope.PlayerID,
+		scope.AgentID,
+		scope.TurnID,
+		args.ProposalID,
+		args.ExpectedRevision,
+		args.Decision,
+		args.Reason,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf(
+		"NPC repair response turn=%s event=%s decision=%s status=%s",
+		scope.TurnID,
+		event.ID,
+		event.Decision,
+		event.Status,
+	)
+
+	raw, err = json.Marshal(event)
+	if err != nil {
+		return "", err
+	}
+
+	return string(raw), nil
+}

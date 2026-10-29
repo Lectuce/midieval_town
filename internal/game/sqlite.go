@@ -334,6 +334,10 @@ CREATE TABLE IF NOT EXISTS repair_proposal_deliveries (
         REFERENCES npcs(world_id, id)
 );
 
+
+	CREATE INDEX IF NOT EXISTS idx_repair_coordination_pending
+		ON repair_coordination_events(status, created_at);
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

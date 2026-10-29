@@ -65,6 +65,14 @@ func BuildToolHandlers(db *sql.DB) map[string]engine.ToolHandler {
 		return acceptRepairProposal(ctx, db, scope, input)
 	}
 
+	handlers["respond_to_repair_proposal"] = func(
+		ctx context.Context,
+		scope engine.Scope,
+		input map[string]any,
+	) (string, error) {
+		return respondToRepairProposal(ctx, db, scope, input)
+	}
+
 	return handlers
 }
 

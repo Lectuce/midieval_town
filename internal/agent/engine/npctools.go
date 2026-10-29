@@ -143,6 +143,45 @@ var NPCTools = []anthropic.ToolParam{
 			},
 		},
 	},
+
+	{
+		Name: "respond_to_repair_proposal",
+		Description: anthropic.String(
+			"仅马丁可用。对已经收到的维修报价记录拒绝或修改要求。" +
+				"先查询实际报价，使用对应ID和版本。" +
+				"reject表示拒绝，不请求继续协商；" +
+				"request_revision表示提出具体修改要求，并允许系统组织传达。" +
+				"不会改价、替罗兰同意、付款或启动维修。" +
+				"普通讨论不必调用，不得为了触发协商故意拒绝。",
+		),
+		InputSchema: anthropic.ToolInputSchemaParam{
+			Type: "object",
+			Properties: map[string]any{
+				"proposal_id": map[string]any{
+					"type": "string",
+				},
+				"expected_revision": map[string]any{
+					"type":    "integer",
+					"minimum": 1,
+				},
+				"decision": map[string]any{
+					"type": "string",
+					"enum": []string{"reject", "request_revision"},
+				},
+				"reason": map[string]any{
+					"type":      "string",
+					"minLength": 1,
+					"maxLength": 256,
+				},
+			},
+			Required: []string{
+				"proposal_id",
+				"expected_revision",
+				"decision",
+				"reason",
+			},
+		},
+	},
 }
 
 var NPCToolsDefinitions = map[string][]anthropic.ToolUnionParam{

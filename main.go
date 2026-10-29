@@ -4,6 +4,7 @@ import (
 	"context"
 	agentconfig "cybertown/internal/agent/config"
 	"cybertown/internal/agent/engine"
+	"cybertown/internal/director"
 	"cybertown/internal/game"
 	"cybertown/internal/npc"
 	"cybertown/internal/rouster"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -162,6 +164,57 @@ func main() {
 	if err != nil {
 		log.Fatalf("create dialogue service: %v", err)
 	}
+
+	directorEngine, err := engine.New(
+		&engine.LLM{
+			Client: &agentconfig.Client,
+		},
+		engine.Config{
+			Model:       agentconfig.PRIMARY_MODEL,
+			MaxTokens:   1024,
+			MaxRounds:   1,
+			TurnTimeout: 30 * time.Second,
+		},
+		map[string][]anthropic.ToolUnionParam{
+			"director": {},
+		},
+		map[string]map[string]engine.ToolHandler{
+			"director": {},
+		},
+	)
+	if err != nil {
+		log.Fatalf("create director engine: %v", err)
+	}
+
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+
+	recoverCtx, cancelRecovery := context.WithTimeout(
+		workerCtx,
+		5*time.Second,
+	)
+	err = game.RecoverRepairCoordination(recoverCtx, db)
+	cancelRecovery()
+	if err != nil {
+		stopWorker()
+		log.Fatalf("recover director events: %v", err)
+	}
+
+	directorService := &director.Service{
+		DB:     db,
+		Engine: directorEngine,
+	}
+
+	workerDone := make(chan struct{})
+
+	go func() {
+		defer close(workerDone)
+		directorService.Run(workerCtx)
+	}()
+
+	defer func() {
+		stopWorker()
+		<-workerDone
+	}()
 
 	r := gin.Default()
 	rouster.SetUpRousters(r, db, dialogueService)
