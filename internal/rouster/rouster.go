@@ -29,4 +29,9 @@ func SetUpRousters(r *gin.Engine, db *sql.DB, dialogueService *npc.DialogueServi
 	r.POST("/api/npcs/:npcID/repair-proposals/:proposalID/deliver", handler.DeliverRepairProposalHandler(db))
 	r.GET("/api/player/repair-proposals", handler.PlayerRepairProposalsHandler(db))
 
+	r.POST("/api/negotiations")
+	r.GET("/api/negotiations/:id")
+	r.POST("/api/negotiations/:id/messages")
+	r.POST("/api/negotiations/:id/cancel")
+
 }

@@ -381,6 +381,100 @@ CREATE TABLE IF NOT EXISTS repair_coordination_events (
 
 	CREATE INDEX IF NOT EXISTS idx_repair_coordination_pending
 		ON repair_coordination_events(status, created_at);
+
+
+CREATE TABLE IF NOT EXISTS negotiations (
+    world_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    cart_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    initial_proposal_id TEXT NOT NULL,
+    initial_proposal_revision INTEGER NOT NULL CHECK (initial_proposal_revision >= 1),
+    current_proposal_id TEXT NOT NULL,
+    current_proposal_revision INTEGER NOT NULL CHECK (current_proposal_revision >= 1),
+    status TEXT NOT NULL DEFAULT 'inviting' CHECK (status IN (
+        'inviting', 'travelling', 'discussing',
+        'agreed', 'blocked', 'cancelled', 'failed'
+    )),
+    next_actor_id TEXT,
+    round_count INTEGER NOT NULL DEFAULT 0 CHECK (round_count >= 0),
+    director_calls INTEGER NOT NULL DEFAULT 0 CHECK (director_calls >= 0),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+    end_reason TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+
+    PRIMARY KEY (world_id, id),
+    UNIQUE (world_id, player_id, request_id),
+    FOREIGN KEY (world_id, player_id) REFERENCES players(world_id, id),
+    FOREIGN KEY (world_id, cart_id) REFERENCES carts(world_id, id),
+    FOREIGN KEY (world_id, initial_proposal_id) REFERENCES repair_proposals(world_id, id),
+    FOREIGN KEY (world_id, current_proposal_id) REFERENCES repair_proposals(world_id, id),
+    FOREIGN KEY (world_id, next_actor_id) REFERENCES npcs(world_id, id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_negotiations_active_cart
+    ON negotiations(world_id, cart_id)
+    WHERE status IN ('inviting', 'travelling', 'discussing');
+
+CREATE TABLE IF NOT EXISTS negotiation_participants (
+    world_id TEXT NOT NULL,
+    negotiation_id TEXT NOT NULL,
+    npc_id TEXT NOT NULL,
+    invite_status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (invite_status IN ('pending', 'accepted', 'declined')),
+    arrival_status TEXT NOT NULL DEFAULT 'not_started'
+        CHECK (arrival_status IN ('not_started', 'travelling', 'arrived')),
+
+    PRIMARY KEY (world_id, negotiation_id, npc_id),
+    CHECK (arrival_status = 'not_started' OR invite_status = 'accepted'),
+    FOREIGN KEY (world_id, negotiation_id) REFERENCES negotiations(world_id, id),
+    FOREIGN KEY (world_id, npc_id) REFERENCES npcs(world_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS negotiation_events (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    world_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    negotiation_id TEXT NOT NULL,
+    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('player', 'npc', 'system', 'director')),
+    actor_id TEXT NOT NULL,
+    recipient_id TEXT,
+    type TEXT NOT NULL CHECK (type IN (
+        'invitation', 'invitation_response', 'arrival',
+        'proposal', 'proposal_response', 'player_message',
+        'director_request', 'director_plan', 'ended'
+    )),
+    proposal_id TEXT,
+    proposal_revision INTEGER,
+    source_event_id TEXT,
+    negotiation_revision INTEGER NOT NULL CHECK (negotiation_revision >= 1),
+    text TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'processing', 'done', 'failed', 'cancelled')),
+    attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+
+    UNIQUE (world_id, id),
+    UNIQUE (world_id, negotiation_id, id),
+    CHECK (
+        (proposal_id IS NULL AND proposal_revision IS NULL)
+        OR (proposal_id IS NOT NULL AND proposal_revision IS NOT NULL AND proposal_revision >= 1)
+    ),
+    FOREIGN KEY (world_id, negotiation_id) REFERENCES negotiations(world_id, id),
+    FOREIGN KEY (world_id, negotiation_id, recipient_id)
+        REFERENCES negotiation_participants(world_id, negotiation_id, npc_id),
+    FOREIGN KEY (world_id, proposal_id) REFERENCES repair_proposals(world_id, id),
+    FOREIGN KEY (world_id, negotiation_id, source_event_id)
+        REFERENCES negotiation_events(world_id, negotiation_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_negotiation_events_queue
+    ON negotiation_events(status, seq);
+
+CREATE INDEX IF NOT EXISTS idx_negotiation_events_session
+    ON negotiation_events(world_id, negotiation_id, seq);
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {
