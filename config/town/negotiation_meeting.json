@@ -1,0 +1,16 @@
+{
+  "id": "merchant_to_smithy_v1",
+  "scene_id": "town",
+  "floor": 0,
+  "speed": 24,
+  "merchant_points": [
+    {"x": 236, "y": 18},
+    {"x": 236, "y": 32},
+    {"x": 407, "y": 32},
+    {"x": 407, "y": -15}
+  ],
+  "blacksmith_stand": {
+    "x": 431,
+    "y": -15
+  }
+}
