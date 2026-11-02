@@ -475,6 +475,46 @@ CREATE INDEX IF NOT EXISTS idx_negotiation_events_queue
 CREATE INDEX IF NOT EXISTS idx_negotiation_events_session
     ON negotiation_events(world_id, negotiation_id, seq);
 
+
+CREATE TABLE IF NOT EXISTS npc_move_jobs (
+    world_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    negotiation_id TEXT NOT NULL,
+    npc_id TEXT NOT NULL,
+
+    route_id TEXT NOT NULL,
+    route_json TEXT NOT NULL,
+    scene_id TEXT NOT NULL,
+    floor INTEGER NOT NULL,
+
+    speed REAL NOT NULL CHECK (speed > 0),
+    started_game_time TEXT NOT NULL,
+
+    previous_activity TEXT NOT NULL,
+    expected_npc_revision INTEGER NOT NULL
+        CHECK (expected_npc_revision >= 1),
+
+    status TEXT NOT NULL CHECK (
+        status IN ('running', 'arrived', 'cancelled', 'blocked')
+    ),
+
+    revision INTEGER NOT NULL DEFAULT 1
+        CHECK (revision >= 1),
+
+    PRIMARY KEY (world_id, id),
+
+    UNIQUE (world_id, negotiation_id, npc_id),
+
+    FOREIGN KEY (world_id, negotiation_id, npc_id)
+        REFERENCES negotiation_participants(
+            world_id, negotiation_id, npc_id
+        )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_npc_move_jobs_running
+ON npc_move_jobs(world_id, npc_id)
+WHERE status = 'running';
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

@@ -463,3 +463,33 @@ func _exit_tree() -> void:
 	_cart_request_id += 1
 	if _cart_client != null:
 		_cart_client.cancel()
+
+func print_negotiation_route() -> void:
+	var points: Array = []
+
+	for marker in $NegotiationMeeting/MerchantRoute.get_children():
+		if not marker is Marker2D:
+			continue
+
+		# 后端位置使用相对于 Game 的坐标。
+		var point := to_local(marker.global_position)
+		points.append({
+			"x": point.x,
+			"y": point.y,
+		})
+
+	var smith_position := to_local(
+		$NegotiationMeeting/BlacksmithStand.global_position
+	)
+
+	print(JSON.stringify({
+		"id": "merchant_to_smithy_v1",
+		"scene_id": "town",
+		"floor": 0,
+		"speed": 24.0,
+		"merchant_points": points,
+		"blacksmith_stand": {
+			"x": smith_position.x,
+			"y": smith_position.y,
+		},
+	}, "\t"))
