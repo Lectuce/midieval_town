@@ -44,7 +44,3 @@ const (
 	NegotiationStatusCancelled  = "cancelled"
 	NegotiationStatusFailed     = "failed"
 )
-
-func Negotiate(requestID string, proposalID string, expectedRevision int64) (string, string, int64) {
-
-}
