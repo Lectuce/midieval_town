@@ -183,6 +183,7 @@ func _ready() -> void:
 	inventory.claim_requested.connect(func(): sync_cart_position(true))
 	set_floor(Floor.OUTSIDE)
 	get_viewport().size_changed.connect(update_camera_zoom)
+	print_negotiation_route()
 
 func configure_map_bounds() -> void:
 	var cells := ground.get_used_rect()

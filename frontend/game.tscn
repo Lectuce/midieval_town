@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d34ynv73j78nd" path="res://assets/Tiles/tile_0108.png" id="3_fc0e3"]
 [ext_resource type="Texture2D" uid="uid://y4rk3hsu4v8h" path="res://assets/Tiles/tile_0110.png" id="4_7jktm"]
 [ext_resource type="PackedScene" uid="uid://l223k0nuf2s5" path="res://player.tscn" id="5_7jktm"]
-[ext_resource type="TileSet" path="res://assets/TileSets/trees_sorted.tres" id="trees_sorted"]
+[ext_resource type="TileSet" uid="uid://cykcse0o21y6q" path="res://assets/TileSets/trees_sorted.tres" id="trees_sorted"]
 [ext_resource type="Script" uid="uid://d00j8tvqi5yn5" path="res://scripts/world_controller.gd" id="world_controller"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_87v1x"]
@@ -2224,6 +2224,25 @@ shape = SubResource("RectangleShape2D_05h45")
 
 [node name="WarehouseDropoff" type="Marker2D" parent="." unique_id=1456386815]
 position = Vector2(472, -24)
+
+[node name="NegotiationMeeting" type="Node2D" parent="." unique_id=590811948]
+
+[node name="MerchantRoute" type="Node2D" parent="NegotiationMeeting" unique_id=745174618]
+
+[node name="P00" type="Marker2D" parent="NegotiationMeeting/MerchantRoute" unique_id=1382440702]
+position = Vector2(236, 18)
+
+[node name="P01" type="Marker2D" parent="NegotiationMeeting/MerchantRoute" unique_id=334681853]
+position = Vector2(236, 32)
+
+[node name="P02" type="Marker2D" parent="NegotiationMeeting/MerchantRoute" unique_id=1935208436]
+position = Vector2(407, 32)
+
+[node name="P03" type="Marker2D" parent="NegotiationMeeting/MerchantRoute" unique_id=71943787]
+position = Vector2(407, -15)
+
+[node name="BlacksmithStand" type="Marker2D" parent="NegotiationMeeting" unique_id=1305985893]
+position = Vector2(431, -15)
 
 [editable path="Guard"]
 [editable path="Player"]
