@@ -6,6 +6,7 @@ import (
 	"cybertown/internal/agent/engine"
 	"cybertown/internal/director"
 	"cybertown/internal/game"
+	"cybertown/internal/negotiation"
 	"cybertown/internal/npc"
 	"cybertown/internal/rouster"
 	"database/sql"
@@ -186,6 +187,27 @@ func main() {
 		log.Fatalf("create director engine: %v", err)
 	}
 
+	invitationEngine, err := engine.New(
+		&engine.LLM{
+			Client: &agentconfig.Client,
+		},
+		engine.Config{
+			Model:       agentconfig.PRIMARY_MODEL,
+			MaxTokens:   512,
+			MaxRounds:   1,
+			TurnTimeout: 30 * time.Second,
+		},
+		map[string][]anthropic.ToolUnionParam{
+			"negotiation_invitation": {},
+		},
+		map[string]map[string]engine.ToolHandler{
+			"negotiation_invitation": {},
+		},
+	)
+	if err != nil {
+		log.Fatalf("create invitation engine: %v", err)
+	}
+
 	workerCtx, stopWorker := context.WithCancel(context.Background())
 
 	recoverCtx, cancelRecovery := context.WithTimeout(
@@ -193,10 +215,13 @@ func main() {
 		5*time.Second,
 	)
 	err = game.RecoverRepairCoordination(recoverCtx, db)
+	if err == nil {
+		err = game.RecoverNegotiationInvitations(recoverCtx, db)
+	}
 	cancelRecovery()
 	if err != nil {
 		stopWorker()
-		log.Fatalf("recover director events: %v", err)
+		log.Fatalf("recover background events: %v", err)
 	}
 
 	directorService := &director.Service{
@@ -211,9 +236,24 @@ func main() {
 		directorService.Run(workerCtx)
 	}()
 
+	negotiationService := &negotiation.Service{
+		DB: db,
+		Agent: &npc.Agent{
+			Engine: invitationEngine,
+		},
+	}
+
+	negotiationDone := make(chan struct{})
+
+	go func() {
+		defer close(negotiationDone)
+		negotiationService.Run(workerCtx)
+	}()
+
 	defer func() {
 		stopWorker()
 		<-workerDone
+		<-negotiationDone
 	}()
 
 	r := gin.Default()

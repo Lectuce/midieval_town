@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
@@ -481,4 +482,418 @@ func getNegotiationTx(
 	)
 
 	return n, err
+}
+
+func ClaimNegotiationInvitation(
+	ctx context.Context,
+	db *sql.DB,
+) (NegotiationInvitation, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return NegotiationInvitation{}, err
+	}
+	defer tx.Rollback()
+
+	var job NegotiationInvitation
+	var worldID, negotiationID string
+
+	// 同一会话中，有一个事件正在处理时，不领取另一条。
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			e.world_id,
+			e.negotiation_id,
+			e.id,
+			e.recipient_id,
+			e.text
+		FROM negotiation_events AS e
+		JOIN negotiations AS n
+			ON n.world_id = e.world_id
+			AND n.id = e.negotiation_id
+		JOIN negotiation_participants AS p
+			ON p.world_id = e.world_id
+			AND p.negotiation_id = e.negotiation_id
+			AND p.npc_id = e.recipient_id
+		WHERE e.type = 'invitation'
+			AND e.status = 'pending'
+			AND e.attempts = 0
+			AND e.actor_kind = 'player'
+			AND e.actor_id = n.player_id
+			AND n.status = 'inviting'
+			AND p.invite_status = 'pending'
+			AND NOT EXISTS (
+				SELECT 1
+				FROM negotiation_events AS running
+				WHERE running.world_id = e.world_id
+					AND running.negotiation_id = e.negotiation_id
+					AND running.status = 'processing'
+			)
+		ORDER BY e.seq
+		LIMIT 1
+	`).Scan(
+		&worldID,
+		&negotiationID,
+		&job.EventID,
+		&job.NPCID,
+		&job.Text,
+	)
+	if err != nil {
+		return NegotiationInvitation{}, err
+	}
+
+	job.Negotiation, err = getNegotiationTx(
+		ctx, tx, worldID, negotiationID,
+	)
+	if err != nil {
+		return NegotiationInvitation{}, err
+	}
+
+	result, err := tx.ExecContext(ctx, `
+		UPDATE negotiation_events
+		SET status = 'processing',
+			attempts = attempts + 1,
+			negotiation_revision = ?
+		WHERE world_id = ?
+			AND id = ?
+			AND status = 'pending'
+			AND attempts = 0
+	`,
+		job.Negotiation.Revision,
+		worldID,
+		job.EventID,
+	)
+	if err != nil {
+		return NegotiationInvitation{}, err
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return NegotiationInvitation{}, err
+	}
+	if count != 1 {
+		return NegotiationInvitation{}, fmt.Errorf(
+			"invitation was already claimed",
+		)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return NegotiationInvitation{}, err
+	}
+
+	return job, nil
+}
+
+func FinishNegotiationInvitation(
+	ctx context.Context,
+	db *sql.DB,
+	job NegotiationInvitation,
+	decision InvitationDecision,
+) error {
+	decision.Speech = strings.TrimSpace(decision.Speech)
+
+	switch decision.Action {
+	case "accept_invitation", "decline_invitation", "failed":
+	default:
+		return fmt.Errorf("invalid invitation decision")
+	}
+
+	if decision.Speech == "" ||
+		!utf8.ValidString(decision.Speech) ||
+		utf8.RuneCountInString(decision.Speech) > 256 {
+		return fmt.Errorf("invalid invitation speech")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	worldID := job.Negotiation.WorldID
+
+	var eventStatus, recipientID, negotiationID string
+	var claimedRevision int64
+
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			status,
+			recipient_id,
+			negotiation_id,
+			negotiation_revision
+		FROM negotiation_events
+		WHERE world_id = ?
+			AND id = ?
+			AND type = 'invitation'
+	`,
+		worldID,
+		job.EventID,
+	).Scan(
+		&eventStatus,
+		&recipientID,
+		&negotiationID,
+		&claimedRevision,
+	)
+	if err != nil {
+		return err
+	}
+
+	if recipientID != job.NPCID ||
+		negotiationID != job.Negotiation.ID {
+		return fmt.Errorf("invitation identity mismatch")
+	}
+
+	// 已经处理过，不能重复写入回应。
+	if eventStatus == "done" ||
+		eventStatus == "failed" ||
+		eventStatus == "cancelled" {
+		return nil
+	}
+	if eventStatus != "processing" {
+		return fmt.Errorf("invitation is not processing")
+	}
+
+	n, err := getNegotiationTx(ctx, tx, worldID, negotiationID)
+	if err != nil {
+		return err
+	}
+
+	// 会话已经结束，迟到的模型结果不能重新打开会话。
+	if n.Status != NegotiationStatusInviting {
+		_, err = tx.ExecContext(ctx, `
+			UPDATE negotiation_events
+			SET status = 'cancelled'
+			WHERE world_id = ? AND id = ?
+		`, worldID, job.EventID)
+		if err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+
+	// 保存正常决定前，再检查模型依据是否已经变化。
+	if decision.Action != "failed" {
+		var valid bool
+
+		err = tx.QueryRowContext(ctx, `
+			SELECT EXISTS (
+				SELECT 1
+				FROM repair_proposals AS p
+				JOIN carts AS c
+					ON c.world_id = p.world_id
+					AND c.id = p.cart_id
+				JOIN npcs AS character
+					ON character.world_id = p.world_id
+					AND character.id = ?
+				WHERE p.world_id = ?
+					AND p.id = ?
+					AND p.revision = ?
+					AND p.cart_id = ?
+					AND p.status = 'proposed'
+					AND p.worker_confirmed = 1
+					AND p.payer_confirmed = 0
+					AND c.repair_status = 'damaged'
+					AND character.revision = ?
+					AND character.id IN (
+						p.payer_npc_id, p.worker_npc_id
+					)
+			)
+		`,
+			job.NPCID,
+			worldID,
+			n.CurrentProposalID,
+			n.CurrentProposalRevision,
+			n.CartID,
+			job.NPCRevision,
+		).Scan(&valid)
+		if err != nil {
+			return err
+		}
+
+		if !valid ||
+			n.Revision != claimedRevision ||
+			n.Revision != job.Negotiation.Revision {
+			decision = InvitationDecision{
+				Action: "failed",
+				Speech: "邀请处理期间相关状态发生变化，本次处理已停止。",
+			}
+		}
+	}
+
+	nextStatus := NegotiationStatusInviting
+	endReason := ""
+	eventType := "invitation_response"
+	actorKind := "npc"
+	actorID := job.NPCID
+	processedStatus := "done"
+
+	if decision.Action == "failed" {
+		nextStatus = NegotiationStatusFailed
+		endReason = decision.Speech
+		eventType = "ended"
+		actorKind = "system"
+		actorID = "negotiation_worker"
+		processedStatus = "failed"
+	} else {
+		inviteStatus := "accepted"
+
+		if decision.Action == "decline_invitation" {
+			inviteStatus = "declined"
+			nextStatus = NegotiationStatusBlocked
+			endReason = "一位参与者拒绝参加本次会面。"
+		}
+
+		result, err := tx.ExecContext(ctx, `
+			UPDATE negotiation_participants
+			SET invite_status = ?
+			WHERE world_id = ?
+				AND negotiation_id = ?
+				AND npc_id = ?
+				AND invite_status = 'pending'
+				AND arrival_status = 'not_started'
+		`,
+			inviteStatus,
+			worldID,
+			n.ID,
+			job.NPCID,
+		)
+		if err != nil {
+			return err
+		}
+
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fmt.Errorf("participant state changed")
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE negotiations
+		SET status = ?,
+			end_reason = ?,
+			next_actor_id = NULL,
+			revision = revision + 1
+		WHERE world_id = ? AND id = ?
+	`, nextStatus, endReason, worldID, n.ID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE negotiation_events
+		SET status = ?
+		WHERE world_id = ? AND id = ?
+	`, processedStatus, worldID, job.EventID)
+	if err != nil {
+		return err
+	}
+
+	// 回应关联原邀请。这里只保存面向玩家的回应记录，
+	// 不代表另一位 NPC 自动获知了这段话。
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO negotiation_events (
+			world_id,
+			id,
+			negotiation_id,
+			actor_kind,
+			actor_id,
+			type,
+			source_event_id,
+			negotiation_revision,
+			text,
+			status
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'done')
+	`,
+		worldID,
+		job.EventID+":response",
+		n.ID,
+		actorKind,
+		actorID,
+		eventType,
+		job.EventID,
+		n.Revision+1,
+		decision.Speech,
+	)
+	if err != nil {
+		return err
+	}
+
+	// 一人拒绝或处理失败，本次会面停止。
+	// 取消未处理的邀请，不继续消耗模型调用。
+	if nextStatus != NegotiationStatusInviting {
+		_, err = tx.ExecContext(ctx, `
+			UPDATE negotiation_events
+			SET status = 'cancelled'
+			WHERE world_id = ?
+				AND negotiation_id = ?
+				AND status = 'pending'
+		`, worldID, n.ID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func RecoverNegotiationInvitations(
+	ctx context.Context,
+	db *sql.DB,
+) error {
+	rows, err := db.QueryContext(ctx, `
+		SELECT world_id, negotiation_id, id, recipient_id
+		FROM negotiation_events
+		WHERE type = 'invitation'
+			AND status = 'processing'
+		ORDER BY seq
+	`)
+	if err != nil {
+		return err
+	}
+
+	var jobs []NegotiationInvitation
+
+	for rows.Next() {
+		var job NegotiationInvitation
+
+		if err := rows.Scan(
+			&job.Negotiation.WorldID,
+			&job.Negotiation.ID,
+			&job.EventID,
+			&job.NPCID,
+		); err != nil {
+			rows.Close()
+			return err
+		}
+
+		jobs = append(jobs, job)
+	}
+
+	rowsErr := rows.Err()
+	rows.Close()
+
+	if rowsErr != nil {
+		return rowsErr
+	}
+
+	// 必须先关闭 rows，再启动写入事务。
+	// 当前数据库只有一个连接。
+	for _, job := range jobs {
+		err := FinishNegotiationInvitation(
+			ctx,
+			db,
+			job,
+			InvitationDecision{
+				Action: "failed",
+				Speech: "服务重启中断了邀请处理，本次会面未继续。",
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -44,3 +44,19 @@ const (
 	NegotiationStatusCancelled  = "cancelled"
 	NegotiationStatusFailed     = "failed"
 )
+
+// 后台领取的一条邀请任务。
+type NegotiationInvitation struct {
+	Negotiation Negotiation
+	EventID     string
+	NPCID       string
+	Text        string
+
+	// 本次模型读取的角色版本，保存决定时再次检查。
+	NPCRevision int64
+}
+
+type InvitationDecision struct {
+	Action string `json:"action"`
+	Speech string `json:"speech"`
+}
