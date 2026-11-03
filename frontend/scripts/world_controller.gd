@@ -184,6 +184,27 @@ func _ready() -> void:
 	set_floor(Floor.OUTSIDE)
 	get_viewport().size_changed.connect(update_camera_zoom)
 	print_negotiation_route()
+	var npc_sync := preload(
+		"res://scripts/npc_position_sync.gd"
+	).new()
+
+	npc_sync.name = "NPCPositionSync"
+	npc_sync.world_root = self
+
+	var base_url := "http://127.0.0.1:8080"
+
+	if OS.has_feature("web"):
+		base_url = str(
+			JavaScriptBridge.eval("window.location.origin")
+		)
+
+	npc_sync.api_url = base_url + "/api/npcs/positions"
+
+	add_child(npc_sync)
+
+
+
+
 
 func configure_map_bounds() -> void:
 	var cells := ground.get_used_rect()

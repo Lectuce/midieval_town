@@ -33,5 +33,6 @@ func SetUpRousters(r *gin.Engine, db *sql.DB, dialogueService *npc.DialogueServi
 	r.GET("/api/negotiations/:id")
 	r.POST("/api/negotiations/:id/messages")
 	r.POST("/api/negotiations/:id/cancel")
+	r.GET("/api/npcs/positions", handler.NPCPositionsHandler(db))
 
 }

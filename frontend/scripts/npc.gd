@@ -1,4 +1,4 @@
-extends StaticBody2D
+extends AnimatableBody2D
 
 ## Must match the NPC id in the server's town configuration.
 @export var npc_id: String = ""
@@ -31,3 +31,65 @@ func reply_to(message: String) -> String:
 			if not term.is_empty() and term in query:
 				return str(reply_rules[keywords])
 	return fallback_reply
+
+
+var _server_revision: int = -1
+var _server_target := Vector2.ZERO
+var _position_pending := false
+
+
+func apply_server_position(
+	snapshot: Dictionary,
+	world_root: Node2D
+) -> void:
+	# 这一版只同步地面上的会面参与者。
+	if npc_id not in ["merchant", "blacksmith"]:
+		return
+
+	if str(snapshot.get("id", "")) != npc_id:
+		return
+
+	if str(snapshot.get("scene_id", "")) != "town":
+		return
+
+	if int(snapshot.get("floor", -1)) != 0:
+		return
+
+	var revision := int(snapshot.get("revision", -1))
+	if revision < 1 or revision <= _server_revision:
+		return
+
+	var position_data = snapshot.get("position")
+	if not position_data is Dictionary:
+		return
+
+	var x_value = position_data.get("x")
+	var y_value = position_data.get("y")
+
+	if not (x_value is float or x_value is int):
+		return
+	if not (y_value is float or y_value is int):
+		return
+
+	var town_position := Vector2(
+		float(x_value),
+		float(y_value)
+	)
+
+	if not is_finite(town_position.x) or not is_finite(town_position.y):
+		return
+
+	_server_revision = revision
+
+	# 后端保存的是相对 Game 的坐标。
+	# 转成全局坐标后再应用，避免 Game 自身偏移造成错位。
+	_server_target = world_root.to_global(town_position)
+	_position_pending = true
+
+
+func _physics_process(_delta: float) -> void:
+	if not _position_pending:
+		return
+
+	global_position = _server_target
+	_position_pending = false
