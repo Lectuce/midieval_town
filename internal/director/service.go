@@ -3,7 +3,7 @@ package director
 import (
 	"context"
 	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
+	"cybertown/internal/game/repair"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -70,7 +70,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) processOne(ctx context.Context) (resultErr error) {
-	event, err := game.ClaimRepairCoordination(ctx, s.DB)
+	event, err := repair.ClaimRepairCoordination(ctx, s.DB)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (s *Service) processOne(ctx context.Context) (resultErr error) {
 		)
 		defer cancel()
 
-		_, saveErr := game.FinishRepairCoordination(
+		_, saveErr := repair.FinishRepairCoordination(
 			saveCtx,
 			s.DB,
 			event,
@@ -103,7 +103,7 @@ func (s *Service) processOne(ctx context.Context) (resultErr error) {
 		}
 	}()
 
-	proposal, err := game.GetRepairProposal(
+	proposal, err := repair.GetRepairProposal(
 		ctx, s.DB, event.WorldID, event.ProposalID,
 	)
 	if err != nil {
@@ -112,17 +112,17 @@ func (s *Service) processOne(ctx context.Context) (resultErr error) {
 
 	// 已经失效的事件不再消耗模型调用。
 	if proposal.Revision != event.ProposalRevision ||
-		proposal.Status != game.RepairProposalStatusProposed ||
+		proposal.Status != repair.RepairProposalStatusProposed ||
 		proposal.PayerConfirmed {
-		_, err = game.FinishRepairCoordination(
+		_, err = repair.FinishRepairCoordination(
 			ctx, s.DB, event, "wait", "报价状态已经变化",
 		)
 		return err
 	}
 
 	input, err := json.Marshal(struct {
-		Event    game.RepairCoordinationEvent `json:"event"`
-		Proposal game.RepairProposal          `json:"proposal"`
+		Event    repair.RepairCoordinationEvent `json:"event"`
+		Proposal repair.RepairProposal          `json:"proposal"`
 	}{
 		Event:    event,
 		Proposal: proposal,
@@ -173,7 +173,7 @@ func (s *Service) processOne(ctx context.Context) (resultErr error) {
 		return fmt.Errorf("director returned invalid reason")
 	}
 
-	status, err := game.FinishRepairCoordination(
+	status, err := repair.FinishRepairCoordination(
 		ctx, s.DB, event, plan.Action, plan.Reason,
 	)
 	if err != nil {

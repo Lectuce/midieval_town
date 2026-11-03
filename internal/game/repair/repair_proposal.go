@@ -1,4 +1,4 @@
-package game
+package repair
 
 const (
 	RepairProposalStatusProposed  = "proposed"

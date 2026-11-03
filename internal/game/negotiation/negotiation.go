@@ -1,4 +1,4 @@
-package game
+package negotiation
 
 type Negotiation struct {
 	ID                      string
