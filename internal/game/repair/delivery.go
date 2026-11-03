@@ -2,6 +2,7 @@ package repair
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"database/sql"
 	"fmt"
 )
@@ -18,7 +19,7 @@ func DeliverRepairProposal(
 ) (RepairProposal, error) {
 	if worldID == "" || playerID == "" ||
 		proposalID == "" || recipientNPCID == "" {
-		return RepairProposal{}, ErrRepairProposalDeliveryDenied
+		return RepairProposal{}, constError.ErrRepairProposalDeliveryDenied
 	}
 
 	// 一个 UPDATE 同时检查：
@@ -71,7 +72,7 @@ func DeliverRepairProposal(
 		return RepairProposal{}, err
 	}
 	if affected == 0 {
-		return RepairProposal{}, ErrRepairProposalDeliveryDenied
+		return RepairProposal{}, constError.ErrRepairProposalDeliveryDenied
 	}
 
 	return GetRepairProposal(ctx, db, worldID, proposalID)

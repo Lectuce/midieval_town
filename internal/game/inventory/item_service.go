@@ -2,6 +2,9 @@ package inventory
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/quest"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -40,7 +43,7 @@ func ClaimShipmentReceipt(
 	defer tx.Rollback()
 
 	// 确认玩家存在，读取当前状态和位置。
-	var player Player
+	var player actor.Player
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT scene_id, position_x, position_y, floor, status
@@ -80,7 +83,7 @@ func ClaimShipmentReceipt(
 	if !claimed {
 		// 首次领取必须满足玩家、任务、证据和位置条件。
 		if player.Status != "active" {
-			return ItemClaimResult{}, ErrPlayerInactive
+			return ItemClaimResult{}, constError.ErrPlayerInactive
 		}
 
 		var questStatus string
@@ -94,13 +97,13 @@ func ClaimShipmentReceipt(
 		`, worldID, playerID, "missing_iron_cart").Scan(&questStatus)
 
 		if errors.Is(err, sql.ErrNoRows) {
-			return ItemClaimResult{}, ErrQuestNotActive
+			return ItemClaimResult{}, constError.ErrQuestNotActive
 		}
 		if err != nil {
 			return ItemClaimResult{}, fmt.Errorf("load claim quest: %w", err)
 		}
-		if questStatus != QuestStatusActive {
-			return ItemClaimResult{}, ErrQuestNotActive
+		if questStatus != quest.QuestStatusActive {
+			return ItemClaimResult{}, constError.ErrQuestNotActive
 		}
 
 		var hasEvidence bool
@@ -122,7 +125,7 @@ func ClaimShipmentReceipt(
 		}
 
 		if player.SceneID != "town" || player.Floor != 0 {
-			return ItemClaimResult{}, ErrOutsideInvestigationRange
+			return ItemClaimResult{}, constError.ErrOutsideInvestigationRange
 		}
 
 		// 与 MissingCart 的位置和现有调查范围保持一致。
@@ -132,7 +135,7 @@ func ClaimShipmentReceipt(
 		)
 		if math.IsNaN(distance) || math.IsInf(distance, 0) ||
 			distance > 24 {
-			return ItemClaimResult{}, ErrOutsideInvestigationRange
+			return ItemClaimResult{}, constError.ErrOutsideInvestigationRange
 		}
 
 		// 先登记领取来源，唯一约束防止重复领取。

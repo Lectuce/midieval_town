@@ -2,6 +2,7 @@ package repair
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
@@ -188,14 +189,14 @@ func ConfirmRepairProposal(
 		}
 
 		if !received {
-			return RepairProposal{}, ErrRepairProposalDeliveryDenied
+			return RepairProposal{}, constError.ErrRepairProposalDeliveryDenied
 		}
 	}
 
 	if proposal.Revision != expectedRevision {
 		return RepairProposal{}, fmt.Errorf(
 			"%w: expected %d, current %d",
-			transport.ErrRepairProposalRevisionConflict,
+			constError.ErrRepairProposalRevisionConflict,
 			expectedRevision,
 			proposal.Revision,
 		)
@@ -203,7 +204,7 @@ func ConfirmRepairProposal(
 
 	if proposal.Status != RepairProposalStatusProposed &&
 		proposal.Status != RepairProposalStatusConfirmed {
-		return RepairProposal{}, ErrRepairProposalNotConfirmable
+		return RepairProposal{}, constError.ErrRepairProposalNotConfirmable
 	}
 
 	// 同一参与者已经确认过，无需再次更新。
@@ -264,7 +265,7 @@ func ConfirmRepairProposal(
 		)
 	}
 	if affected == 0 {
-		return RepairProposal{}, ErrRepairProposalRevisionConflict
+		return RepairProposal{}, constError.ErrRepairProposalRevisionConflict
 	}
 
 	_, err = tx.ExecContext(ctx, `

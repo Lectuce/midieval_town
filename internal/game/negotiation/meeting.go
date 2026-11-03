@@ -3,6 +3,7 @@ package negotiation
 import (
 	"context"
 	"cybertown/internal/game/actor"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/model"
 	"database/sql"
 	"encoding/json"
@@ -139,7 +140,7 @@ func StartNegotiationMeeting(
 	}
 
 	if n.Status != NegotiationStatusInviting {
-		return ErrMeetingNotReady
+		return constError.ErrMeetingNotReady
 	}
 
 	// 必须正好是两位参与者，并且都已经接受、尚未出发。
@@ -163,7 +164,7 @@ func StartNegotiationMeeting(
 	}
 
 	if total != 2 || ready != 2 {
-		return ErrMeetingNotReady
+		return constError.ErrMeetingNotReady
 	}
 
 	// 报价、玩家和货车都必须仍有效。

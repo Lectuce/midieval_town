@@ -3,6 +3,8 @@ package negotiation
 import (
 	"context"
 	"crypto/sha256"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/repair"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -29,7 +31,7 @@ func CreateNegotiation(
 		strings.TrimSpace(req.ProposalID) == "" ||
 		len(req.ProposalID) > 128 ||
 		req.ExpectedRevision < 1 {
-		return Negotiation{}, ErrNegotiationInvalidRequest
+		return Negotiation{}, constError.ErrNegotiationInvalidRequest
 	}
 
 	// 同一玩家的同一请求始终得到同一个会话 ID。
@@ -60,7 +62,7 @@ func CreateNegotiation(
 			existing.RequestID != req.RequestID ||
 			existing.InitialProposalID != req.ProposalID ||
 			existing.InitialProposalRevision != req.ExpectedRevision {
-			return Negotiation{}, ErrNegotiationRequestConflict
+			return Negotiation{}, constError.ErrNegotiationRequestConflict
 		}
 
 		return existing, nil
@@ -105,7 +107,7 @@ func CreateNegotiation(
 		&workerConfirmed,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Negotiation{}, ErrNegotiationUnavailable
+		return Negotiation{}, constError.ErrNegotiationUnavailable
 	}
 	if err != nil {
 		return Negotiation{}, fmt.Errorf(
@@ -116,7 +118,7 @@ func CreateNegotiation(
 	// 当前第一版只支持马丁与罗兰的维修协商。
 	if payerNPCID != "merchant" ||
 		workerNPCID != "blacksmith" {
-		return Negotiation{}, ErrNegotiationUnavailable
+		return Negotiation{}, constError.ErrNegotiationUnavailable
 	}
 
 	// 玩家必须有效，并且确实取得过这份报价。
@@ -149,7 +151,7 @@ func CreateNegotiation(
 		)
 	}
 	if !playerCanInvite {
-		return Negotiation{}, ErrNegotiationUnavailable
+		return Negotiation{}, constError.ErrNegotiationUnavailable
 	}
 
 	// 不同按钮请求再次邀请同一份正在协商的报价，
@@ -185,7 +187,7 @@ func CreateNegotiation(
 			return active, nil
 		}
 
-		return Negotiation{}, ErrNegotiationBusy
+		return Negotiation{}, constError.ErrNegotiationBusy
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return Negotiation{}, fmt.Errorf(
@@ -194,14 +196,14 @@ func CreateNegotiation(
 	}
 
 	if proposalRevision != req.ExpectedRevision {
-		return Negotiation{}, ErrRepairProposalRevisionConflict
+		return Negotiation{}, constError.ErrRepairProposalRevisionConflict
 	}
 
 	// 已经双方同意的报价无须再次发起报价协商。
-	if proposalStatus != RepairProposalStatusProposed ||
+	if proposalStatus != repair.RepairProposalStatusProposed ||
 		payerConfirmed ||
 		!workerConfirmed {
-		return Negotiation{}, ErrNegotiationUnavailable
+		return Negotiation{}, constError.ErrNegotiationUnavailable
 	}
 
 	var cartNeedsRepair bool
@@ -224,7 +226,7 @@ func CreateNegotiation(
 		)
 	}
 	if !cartNeedsRepair {
-		return Negotiation{}, ErrNegotiationUnavailable
+		return Negotiation{}, constError.ErrNegotiationUnavailable
 	}
 
 	// 检查当前已实现的占用：
@@ -282,7 +284,7 @@ func CreateNegotiation(
 		)
 	}
 	if occupied {
-		return Negotiation{}, ErrNegotiationBusy
+		return Negotiation{}, constError.ErrNegotiationBusy
 	}
 
 	negotiation := Negotiation{

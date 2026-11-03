@@ -1,9 +1,11 @@
-package world
+package game
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/repair"
 	"cybertown/internal/game/transport"
+	worldstate "cybertown/internal/game/world"
 	"database/sql"
 	"fmt"
 	"time"
@@ -15,33 +17,33 @@ func AdvanceWorldTime(
 	worldID string,
 	elapsed time.Duration,
 	expectedRevision int64,
-) (World, error) {
+) (worldstate.World, error) {
 	if worldID == "" {
-		return World{}, fmt.Errorf("world id is required")
+		return worldstate.World{}, fmt.Errorf("world id is required")
 	}
 
 	if elapsed <= 0 {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"elapsed time must be positive",
 		)
 	}
 
 	if expectedRevision < 1 {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"expected revision must be positive",
 		)
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"begin world time advance: %w", err,
 		)
 	}
 	defer tx.Rollback()
 
 	// 1. 在事务中读取世界。
-	var world World
+	var world worldstate.World
 	var rawGameTime string
 
 	err = tx.QueryRowContext(ctx, `
@@ -54,7 +56,7 @@ func AdvanceWorldTime(
 		&world.Revision,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"load world for time advance: %w", err,
 		)
 	}
@@ -64,15 +66,15 @@ func AdvanceWorldTime(
 		rawGameTime,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"parse world game time: %w", err,
 		)
 	}
 
 	if world.Revision != expectedRevision {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"%w: expected %d, current %d",
-			ErrWorldRevisionConflict,
+			constError.ErrWorldRevisionConflict,
 			expectedRevision,
 			world.Revision,
 		)
@@ -82,7 +84,7 @@ func AdvanceWorldTime(
 
 	// 保证保存后的时间仍可按 RFC3339 格式读取。
 	if nextTime.Year() < 0 || nextTime.Year() > 9999 {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"next game time is outside the supported range",
 		)
 	}
@@ -101,19 +103,19 @@ func AdvanceWorldTime(
 		expectedRevision,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"advance world time: %w", err,
 		)
 	}
 
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"read world time update result: %w", err,
 		)
 	}
 	if affected != 1 {
-		return World{}, ErrWorldRevisionConflict
+		return worldstate.World{}, constError.ErrWorldRevisionConflict
 	}
 
 	// 3. 读取当前世界所有正在执行的维修。
@@ -127,7 +129,7 @@ func AdvanceWorldTime(
 		repair.RepairJobStatusRunning,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"query running repairs: %w", err,
 		)
 	}
@@ -147,7 +149,7 @@ func AdvanceWorldTime(
 			&job.Revision,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"scan running repair: %w", err,
 			)
 		}
@@ -157,7 +159,7 @@ func AdvanceWorldTime(
 			rawStartedAt,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"parse repair %q start time: %w",
 				job.ID,
 				err,
@@ -169,7 +171,7 @@ func AdvanceWorldTime(
 			rawFinishAt,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"parse repair %q finish time: %w",
 				job.ID,
 				err,
@@ -177,7 +179,7 @@ func AdvanceWorldTime(
 		}
 
 		if !job.FinishAt.After(job.StartedAt) {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"repair %q has an invalid time range",
 				job.ID,
 			)
@@ -190,14 +192,14 @@ func AdvanceWorldTime(
 	}
 
 	if err := rows.Err(); err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"read running repairs: %w", err,
 		)
 	}
 
 	// 先结束查询，再更新刚才查询的表。
 	if err := rows.Close(); err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"close running repairs query: %w", err,
 		)
 	}
@@ -220,7 +222,7 @@ func AdvanceWorldTime(
 			job.Revision,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"complete repair %q: %w",
 				job.ID,
 				err,
@@ -229,12 +231,12 @@ func AdvanceWorldTime(
 
 		affected, err := result.RowsAffected()
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"read repair completion result: %w", err,
 			)
 		}
 		if affected != 1 {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"repair %q changed during settlement",
 				job.ID,
 			)
@@ -254,7 +256,7 @@ func AdvanceWorldTime(
 			transport.CartStatusRepairing,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"finish repairing cart %q: %w",
 				job.CartID,
 				err,
@@ -263,12 +265,12 @@ func AdvanceWorldTime(
 
 		affected, err = result.RowsAffected()
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"read repaired cart update result: %w", err,
 			)
 		}
 		if affected != 1 {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"cart %q is missing or is not repairing",
 				job.CartID,
 			)
@@ -290,7 +292,7 @@ func AdvanceWorldTime(
 		transport.TransportStatusInTransit,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"query active transports: %w", err,
 		)
 	}
@@ -314,7 +316,7 @@ func AdvanceWorldTime(
 			&job.Revision,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"scan active transport: %w", err,
 			)
 		}
@@ -323,7 +325,7 @@ func AdvanceWorldTime(
 			time.RFC3339Nano, rawStartedAt,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"parse transport start time: %w", err,
 			)
 		}
@@ -332,13 +334,13 @@ func AdvanceWorldTime(
 			time.RFC3339Nano, rawArriveAt,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"parse transport arrival time: %w", err,
 			)
 		}
 
 		if !job.ArriveAt.After(job.StartedAt) {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"transport %q has an invalid time range",
 				job.ID,
 			)
@@ -350,13 +352,13 @@ func AdvanceWorldTime(
 	}
 
 	if err := transportRows.Err(); err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"read active transports: %w", err,
 		)
 	}
 
 	if err := transportRows.Close(); err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"close active transports query: %w", err,
 		)
 	}
@@ -379,7 +381,7 @@ func AdvanceWorldTime(
 			job.Revision,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"complete transport %q: %w",
 				job.ID,
 				err,
@@ -388,12 +390,12 @@ func AdvanceWorldTime(
 
 		affected, err := result.RowsAffected()
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"read transport completion result: %w", err,
 			)
 		}
 		if affected != 1 {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"transport %q changed during arrival",
 				job.ID,
 			)
@@ -419,19 +421,19 @@ func AdvanceWorldTime(
 			transport.CartStatusReady,
 		)
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"move arriving cart: %w", err,
 			)
 		}
 
 		affected, err = result.RowsAffected()
 		if err != nil {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"read arriving cart update result: %w", err,
 			)
 		}
 		if affected != 1 {
-			return World{}, fmt.Errorf(
+			return worldstate.World{}, fmt.Errorf(
 				"arriving cart %q is missing or not ready",
 				job.CartID,
 			)
@@ -447,7 +449,7 @@ func AdvanceWorldTime(
 		nextTime,
 	)
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"advance negotiation movement: %w",
 			err,
 		)
@@ -456,7 +458,7 @@ func AdvanceWorldTime(
 	// 5. 时间、维修记录、货车状态一起提交。
 	err = tx.Commit()
 	if err != nil {
-		return World{}, fmt.Errorf(
+		return worldstate.World{}, fmt.Errorf(
 			"commit world time advance: %w", err,
 		)
 	}

@@ -34,6 +34,28 @@ var (
 	ErrQuestCompletionConflict = errors.New("quest completion conflict")
 )
 
+var (
+	ErrEvidenceRequired = errors.New(
+		"required evidence not found",
+	)
+
+	ErrRepairProposalRevisionConflict = errors.New(
+		"repair proposal revision conflict",
+	)
+
+	ErrRepairProposalNotConfirmable = errors.New(
+		"repair proposal cannot be confirmed",
+	)
+
+	ErrRepairProposalParticipant = errors.New(
+		"NPC is not a participant in this repair proposal",
+	)
+
+	ErrRepairProposalDeliveryDenied = errors.New(
+		"repair proposal delivery denied",
+	)
+)
+
 var ErrWorldRevisionConflict = errors.New(
 	"world revision conflict",
 )

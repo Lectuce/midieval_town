@@ -3,7 +3,7 @@ package quest
 import (
 	"context"
 	"cybertown/internal/game/actor"
-	"cybertown/internal/game/constError"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/inventory"
 	"database/sql"
 	"errors"

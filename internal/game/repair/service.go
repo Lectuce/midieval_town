@@ -2,6 +2,8 @@ package repair
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
 	"time"
@@ -120,7 +122,7 @@ func StartCartRepair(
 	if proposal.Revision != expectedRevision {
 		return RepairJob{}, fmt.Errorf(
 			"%w: expected %d, current %d",
-			ErrRepairProposalRevisionConflict,
+			constError.ErrRepairProposalRevisionConflict,
 			expectedRevision,
 			proposal.Revision,
 		)
@@ -243,10 +245,10 @@ func StartCartRepair(
 			AND id = ?
 			AND repair_status = ?
 	`,
-		CartStatusRepairing,
+		transport.CartStatusRepairing,
 		worldID,
 		proposal.CartID,
-		CartStatusDamaged,
+		transport.CartStatusDamaged,
 	)
 	if err != nil {
 		return RepairJob{}, fmt.Errorf(
@@ -426,7 +428,7 @@ func StartCartRepair(
 		)
 	}
 	if affected != 1 {
-		return RepairJob{}, ErrRepairProposalRevisionConflict
+		return RepairJob{}, constError.ErrRepairProposalRevisionConflict
 	}
 
 	// 11. 更新世界版本。
