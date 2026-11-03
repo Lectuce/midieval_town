@@ -273,10 +273,22 @@ func main() {
 		negotiationService.Run(workerCtx)
 	}()
 
+	movementDone := make(chan struct{})
+
+	go func() {
+		defer close(movementDone)
+
+		negotiationService.RunMovement(
+			workerCtx,
+			config.World.ID,
+		)
+	}()
+
 	defer func() {
 		stopWorker()
 		<-workerDone
 		<-negotiationDone
+		<-movementDone
 	}()
 
 	r := gin.Default()

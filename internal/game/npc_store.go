@@ -6,6 +6,15 @@ import (
 	"fmt"
 )
 
+// 只包含客户端显示所需的数据，不返回角色私人设定。
+type NPCPositionSnapshot struct {
+	ID       string   `json:"id"`
+	SceneID  string   `json:"scene_id"`
+	Floor    int      `json:"floor"`
+	Position Position `json:"position"`
+	Revision int64    `json:"revision"`
+}
+
 func GetNPC(
 	ctx context.Context,
 	db *sql.DB,
@@ -47,4 +56,48 @@ func GetNPC(
 	}
 
 	return npc, nil
+}
+
+func GetNPCPositions(
+	ctx context.Context,
+	db *sql.DB,
+	worldID string,
+) ([]NPCPositionSnapshot, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT
+			id, scene_id, floor,
+			position_x, position_y, revision
+		FROM npcs
+		WHERE world_id = ?
+		ORDER BY id
+	`, worldID)
+	if err != nil {
+		return nil, fmt.Errorf("query NPC positions: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]NPCPositionSnapshot, 0)
+
+	for rows.Next() {
+		var snapshot NPCPositionSnapshot
+
+		if err := rows.Scan(
+			&snapshot.ID,
+			&snapshot.SceneID,
+			&snapshot.Floor,
+			&snapshot.Position.X,
+			&snapshot.Position.Y,
+			&snapshot.Revision,
+		); err != nil {
+			return nil, fmt.Errorf("scan NPC position: %w", err)
+		}
+
+		result = append(result, snapshot)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read NPC positions: %w", err)
+	}
+
+	return result, nil
 }

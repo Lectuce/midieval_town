@@ -441,8 +441,24 @@ func AdvanceWorldTime(
 		}
 	}
 
+	// 使用本次推进后的游戏时间，更新 NPC 会面移动。
+	// 与世界时间、维修和运输一起提交。
+	err = advanceNegotiationMovementTx(
+		ctx,
+		tx,
+		worldID,
+		nextTime,
+	)
+	if err != nil {
+		return World{}, fmt.Errorf(
+			"advance negotiation movement: %w",
+			err,
+		)
+	}
+
 	// 5. 时间、维修记录、货车状态一起提交。
-	if err := tx.Commit(); err != nil {
+	err = tx.Commit()
+	if err != nil {
 		return World{}, fmt.Errorf(
 			"commit world time advance: %w", err,
 		)
