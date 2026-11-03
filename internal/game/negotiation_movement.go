@@ -1,4 +1,4 @@
-package negotiation
+package game
 
 import (
 	"context"
