@@ -15,11 +15,11 @@ func GetPlayer(
 	return getPlayer(ctx, db, worldID, playerID)
 }
 
-func getPlayer(ctx context.Context, db *sql.DB, worldID string, playerID string) (Player, error) {
+func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (Player, error) {
 
 	var player Player
 
-	err := db.QueryRowContext(ctx,
+	err := dbtx.QueryRowContext(ctx,
 		`
 		SELECT
 			world_id, id, name, scene_id, status,
@@ -53,7 +53,7 @@ func getPlayer(ctx context.Context, db *sql.DB, worldID string, playerID string)
 
 // 更新玩家位置
 func updatePlayerPosition(ctx context.Context,
-	db *sql.DB,
+	db dbtx,
 	worldID string,
 	playerID string,
 	position Position,
