@@ -3,13 +3,8 @@ package world
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
-)
-
-var ErrWorldRevisionConflict = errors.New(
-	"world revision conflict",
 )
 
 func AdvanceWorldTime(

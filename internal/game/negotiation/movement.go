@@ -1,7 +1,8 @@
-package game
+package negotiation
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,35 +10,22 @@ import (
 	"time"
 )
 
-type meetingMoveJob struct {
-	ID                  string
-	NegotiationID       string
-	NPCID               string
-	SceneID             string
-	Floor               int
-	Speed               float64
-	StartedGameTime     string
-	RouteJSON           string
-	ExpectedNPCRevision int64
-	Revision            int64
-}
-
 // 沿折线路线计算位置，不直接向最终目的地画直线。
 func PositionOnRoute(
-	points []Position,
+	points []model.Position,
 	distance float64,
-) (Position, bool, error) {
+) (model.Position, bool, error) {
 	if len(points) < 2 {
-		return Position{}, false, fmt.Errorf("route needs at least two points")
+		return model.Position{}, false, fmt.Errorf("route needs at least two points")
 	}
 	if math.IsNaN(distance) || math.IsInf(distance, 0) {
-		return Position{}, false, fmt.Errorf("invalid movement distance")
+		return model.Position{}, false, fmt.Errorf("invalid movement distance")
 	}
 
 	for _, p := range points {
 		if math.IsNaN(p.X) || math.IsNaN(p.Y) ||
 			math.IsInf(p.X, 0) || math.IsInf(p.Y, 0) {
-			return Position{}, false, fmt.Errorf("invalid route coordinate")
+			return model.Position{}, false, fmt.Errorf("invalid route coordinate")
 		}
 	}
 
@@ -60,7 +48,7 @@ func PositionOnRoute(
 		if distance < length {
 			ratio := distance / length
 
-			return Position{
+			return model.Position{
 				X: start.X + dx*ratio,
 				Y: start.Y + dy*ratio,
 			}, false, nil
@@ -163,7 +151,7 @@ func advanceOneMeetingMove(
 		)
 	}
 
-	var character NPC
+	var character model.NPC
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT
@@ -194,7 +182,7 @@ func advanceOneMeetingMove(
 	}
 
 	// 检查罗兰仍在原地等候，不能只相信之前的 arrived。
-	var smithPosition Position
+	var smithPosition model.Position
 	var smithScene, smithActivity, smithRoute string
 	var smithFloor int
 	var smithRevision, smithExpectedRevision int64
@@ -232,7 +220,7 @@ func advanceOneMeetingMove(
 		return err
 	}
 
-	var smithPoints []Position
+	var smithPoints []model.Position
 	if err := json.Unmarshal([]byte(smithRoute), &smithPoints); err != nil {
 		return err
 	}
@@ -323,7 +311,7 @@ func advanceOneMeetingMove(
 		)
 	}
 
-	var points []Position
+	var points []model.Position
 	if err := json.Unmarshal([]byte(job.RouteJSON), &points); err != nil {
 		return err
 	}

@@ -1,26 +1,15 @@
-package game
+package negotiation
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
 	"time"
 )
-
-var ErrMeetingNotReady = errors.New("negotiation is not ready for meeting")
-
-type NegotiationMeetingRoute struct {
-	ID              string     `json:"id"`
-	SceneID         string     `json:"scene_id"`
-	Floor           int        `json:"floor"`
-	Speed           float64    `json:"speed"`
-	MerchantPoints  []Position `json:"merchant_points"`
-	BlacksmithStand Position   `json:"blacksmith_stand"`
-}
 
 func LoadNegotiationMeetingRoute(
 	path string,
@@ -66,7 +55,7 @@ func ValidateNegotiationMeetingRoute(
 	}
 
 	points := append(
-		[]Position{route.BlacksmithStand},
+		[]model.Position{route.BlacksmithStand},
 		route.MerchantPoints...,
 	)
 
@@ -279,7 +268,7 @@ func StartNegotiationMeeting(
 	}
 
 	// 在当前事务中读取，不能调用使用 db 的 GetNPC。
-	characters := make([]NPC, 2)
+	characters := make([]model.NPC, 2)
 
 	for i, id := range []string{"merchant", "blacksmith"} {
 		character := &characters[i]
@@ -354,13 +343,13 @@ func StartNegotiationMeeting(
 		if character.ID == "blacksmith" {
 			// 罗兰已经在站位，记录原地到场。
 			// 保存这条记录也能保留他之前的活动。
-			points = []Position{character.Position}
+			points = []model.Position{character.Position}
 			jobStatus = "arrived"
 			arrivalStatus = "arrived"
 			activity = "waiting_for_meeting"
 		} else {
 			// 用实际起点替换近似起点，避免开始时发生小幅传送。
-			points = append([]Position(nil), points...)
+			points = append([]model.Position(nil), points...)
 			points[0] = character.Position
 		}
 

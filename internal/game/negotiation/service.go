@@ -1,4 +1,4 @@
-package game
+package negotiation
 
 import (
 	"context"
@@ -10,27 +10,6 @@ import (
 	"time"
 	"unicode/utf8"
 )
-
-var (
-	ErrNegotiationInvalidRequest = errors.New(
-		"invalid negotiation request",
-	)
-	ErrNegotiationRequestConflict = errors.New(
-		"negotiation request conflicts with previous request",
-	)
-	ErrNegotiationUnavailable = errors.New(
-		"proposal unavailable for negotiation",
-	)
-	ErrNegotiationBusy = errors.New(
-		"cart or participant is already occupied",
-	)
-)
-
-type CreateNegotiationRequest struct {
-	RequestID        string
-	ProposalID       string
-	ExpectedRevision int64
-}
 
 func CreateNegotiation(
 	ctx context.Context,

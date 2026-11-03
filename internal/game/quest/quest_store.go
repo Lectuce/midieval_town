@@ -1,4 +1,4 @@
-package game
+package quest
 
 import (
 	"context"

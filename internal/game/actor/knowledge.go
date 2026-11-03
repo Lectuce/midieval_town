@@ -1,16 +1,10 @@
-package game
+package actor
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 )
-
-type KnownFact struct {
-	ID      string `json:"id"`
-	Content string `json:"content"`
-	Source  string `json:"source"`
-}
 
 func GetKnownFacts(
 	ctx context.Context,

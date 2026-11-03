@@ -1,20 +1,10 @@
-package game
+package quest
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
 )
-
-type NPCQuestStatus struct {
-	QuestID           string `json:"quest_id"`
-	Title             string `json:"title"`
-	Status            string `json:"status"`
-	RequiredItemID    string `json:"required_item_id"`
-	RequiredItemCount int64  `json:"required_item_count"`
-	RewardItemID      string `json:"reward_item_id"`
-	RewardItemCount   int64  `json:"reward_item_count"`
-}
 
 func GetNPCQuestStatus(
 	ctx context.Context,

@@ -1,4 +1,4 @@
-package game
+package quest
 
 import (
 	"context"
@@ -7,19 +7,6 @@ import (
 	"fmt"
 	"math"
 )
-
-var (
-	ErrPlayerInactive          = errors.New("player is not active")
-	ErrQuestItemsRequired      = errors.New("required quest items are missing")
-	ErrOutsideQuestRange       = errors.New("player is outside quest giver range")
-	ErrQuestCompletionConflict = errors.New("quest completion conflict")
-)
-
-type QuestCompletionResult struct {
-	Quest            PlayerQuest `json:"quest"`
-	AlreadyCompleted bool        `json:"already_completed"`
-	Message          string      `json:"message"`
-}
 
 func AcceptQuest(ctx context.Context, db *sql.DB, worldID string, playerID string, questID string) (PlayerQuest, error) {
 	if worldID == "" || playerID == "" || questID == "" {

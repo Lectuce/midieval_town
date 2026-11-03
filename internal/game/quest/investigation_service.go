@@ -1,28 +1,13 @@
-package game
+package quest
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"errors"
 	"fmt"
 	"math"
 )
-
-var (
-	ErrQuestNotActive            = errors.New("quest is not active")
-	ErrOutsideInvestigationRange = errors.New("player is outside investigation range")
-	ErrTransportStateMissing     = errors.New("transport state is missing")
-)
-
-type InvestigationResult struct {
-	PointID    string `json:"point_id"`
-	EvidenceID string `json:"evidence_id"`
-	NewlyFound bool   `json:"newly_found"`
-	Message    string `json:"message"`
-
-	Cart      Cart       `json:"cart"`
-	SiteCargo CargoStock `json:"site_cargo"`
-}
 
 func InspectAbandonedCart(
 	ctx context.Context,
@@ -45,7 +30,7 @@ func InspectAbandonedCart(
 	defer tx.Rollback()
 
 	// 在事务内读取玩家，后续查询和写入也使用 tx。
-	var player Player
+	var player model.Player
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT scene_id, position_x, position_y, floor, status

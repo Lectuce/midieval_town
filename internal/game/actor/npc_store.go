@@ -1,27 +1,19 @@
-package game
+package actor
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"fmt"
 )
-
-// 只包含客户端显示所需的数据，不返回角色私人设定。
-type NPCPositionSnapshot struct {
-	ID       string   `json:"id"`
-	SceneID  string   `json:"scene_id"`
-	Floor    int      `json:"floor"`
-	Position Position `json:"position"`
-	Revision int64    `json:"revision"`
-}
 
 func GetNPC(
 	ctx context.Context,
 	db *sql.DB,
 	worldID string,
 	npcID string,
-) (NPC, error) {
-	var npc NPC
+) (model.NPC, error) {
+	var npc model.NPC
 
 	err := db.QueryRowContext(ctx,
 		`
@@ -47,7 +39,7 @@ func GetNPC(
 	)
 
 	if err != nil {
-		return NPC{}, fmt.Errorf(
+		return model.NPC{}, fmt.Errorf(
 			"get npc %q in world %q: %w",
 			npcID,
 			worldID,

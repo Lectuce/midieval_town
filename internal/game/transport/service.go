@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"fmt"
 	"math"
@@ -188,7 +189,7 @@ func StartCartTransport(
 		FromLocationID:      CargoLocationCartSite,
 		ToLocationID:        CargoLocationMerchant,
 		DestinationSceneID:  WarehouseSceneID,
-		DestinationPosition: Position{X: WarehouseX, Y: WarehouseY},
+		DestinationPosition: model.Position{X: WarehouseX, Y: WarehouseY},
 		DestinationFloor:    WarehouseFloor,
 		CargoKg:             cargoKg,
 		Status:              TransportStatusInTransit,

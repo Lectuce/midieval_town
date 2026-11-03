@@ -1,14 +1,9 @@
-package game
+package repair
 
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-)
-
-var ErrRepairProposalDeliveryDenied = errors.New(
-	"repair proposal cannot be delivered",
 )
 
 // 玩家明确转交已经取得的报价。

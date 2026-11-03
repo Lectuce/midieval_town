@@ -1,7 +1,8 @@
-package game
+package actor
 
 import (
 	"context"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"fmt"
 )
@@ -11,13 +12,13 @@ func GetPlayer(
 	db *sql.DB,
 	worldID string,
 	playerID string,
-) (Player, error) {
+) (model.Player, error) {
 	return getPlayer(ctx, db, worldID, playerID)
 }
 
 func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (Player, error) {
 
-	var player Player
+	var player model.Player
 
 	err := dbtx.QueryRowContext(ctx,
 		`
@@ -39,7 +40,7 @@ func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (P
 	)
 
 	if err != nil {
-		return Player{}, fmt.Errorf(
+		return model.Player{}, fmt.Errorf(
 			"get player %q in world %q: %w",
 			playerID,
 			worldID,

@@ -1,22 +1,9 @@
-package game
+package repair
 
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-)
-
-var (
-	ErrRepairProposalRevisionConflict = errors.New(
-		"repair proposal revision conflict",
-	)
-	ErrRepairProposalNotConfirmable = errors.New(
-		"repair proposal cannot be confirmed",
-	)
-	ErrRepairProposalParticipant = errors.New(
-		"NPC is not a participant in this repair proposal",
-	)
 )
 
 func CreateRepairProposal(

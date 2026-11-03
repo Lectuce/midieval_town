@@ -1,4 +1,6 @@
-package game
+package negotiation
+
+import "cybertown/internal/game/model"
 
 type Negotiation struct {
 	ID                      string
@@ -35,16 +37,6 @@ type NegotiationEvent struct {
 	Text          string
 }
 
-const (
-	NegotiationStatusInviting   = "inviting"
-	NegotiationStatusTravelling = "travelling"
-	NegotiationStatusDiscussing = "discussing"
-	NegotiationStatusAgreed     = "agreed"
-	NegotiationStatusBlocked    = "blocked"
-	NegotiationStatusCancelled  = "cancelled"
-	NegotiationStatusFailed     = "failed"
-)
-
 // 后台领取的一条邀请任务。
 type NegotiationInvitation struct {
 	Negotiation Negotiation
@@ -59,4 +51,32 @@ type NegotiationInvitation struct {
 type InvitationDecision struct {
 	Action string `json:"action"`
 	Speech string `json:"speech"`
+}
+
+type NegotiationMeetingRoute struct {
+	ID              string           `json:"id"`
+	SceneID         string           `json:"scene_id"`
+	Floor           int              `json:"floor"`
+	Speed           float64          `json:"speed"`
+	MerchantPoints  []model.Position `json:"merchant_points"`
+	BlacksmithStand model.Position   `json:"blacksmith_stand"`
+}
+
+type meetingMoveJob struct {
+	ID                  string
+	NegotiationID       string
+	NPCID               string
+	SceneID             string
+	Floor               int
+	Speed               float64
+	StartedGameTime     string
+	RouteJSON           string
+	ExpectedNPCRevision int64
+	Revision            int64
+}
+
+type CreateNegotiationRequest struct {
+	RequestID        string
+	ProposalID       string
+	ExpectedRevision int64
 }
