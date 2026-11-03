@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
 	"database/sql"
 	"fmt"
 )
@@ -19,7 +20,7 @@ func GetInventory(
 		)
 	}
 
-	_, err := GetPlayer(ctx, db, worldID, playerID)
+	_, err := actor.GetPlayer(ctx, db, worldID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("load inventory player: %w", err)
 	}

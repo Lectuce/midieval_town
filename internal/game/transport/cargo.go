@@ -1,7 +1,8 @@
-package game
+package transport
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"database/sql"
 	"fmt"
 	"math"
@@ -60,7 +61,7 @@ func LoadCartCargo(
 		)
 	}
 	if affected != 1 {
-		return CargoLoadResult{}, ErrWorldRevisionConflict
+		return CargoLoadResult{}, constError.ErrWorldRevisionConflict
 	}
 
 	// 2. 读取当前货车。
@@ -392,7 +393,7 @@ func UnloadCartCargo(
 		)
 	}
 	if affected != 1 {
-		return CargoUnloadResult{}, ErrWorldRevisionConflict
+		return CargoUnloadResult{}, constError.ErrWorldRevisionConflict
 	}
 
 	// 2. 读取货车实际位置。

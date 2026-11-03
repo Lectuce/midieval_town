@@ -2,7 +2,6 @@ package actor
 
 import (
 	"context"
-	"cybertown/internal/game/model"
 	"database/sql"
 	"fmt"
 )
@@ -12,8 +11,8 @@ func GetNPC(
 	db *sql.DB,
 	worldID string,
 	npcID string,
-) (model.NPC, error) {
-	var npc model.NPC
+) (NPC, error) {
+	var npc NPC
 
 	err := db.QueryRowContext(ctx,
 		`
@@ -39,7 +38,7 @@ func GetNPC(
 	)
 
 	if err != nil {
-		return model.NPC{}, fmt.Errorf(
+		return NPC{}, fmt.Errorf(
 			"get npc %q in world %q: %w",
 			npcID,
 			worldID,

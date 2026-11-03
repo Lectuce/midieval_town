@@ -1,13 +1,15 @@
 package quest
 
+import "cybertown/internal/game/transport"
+
 type InvestigationResult struct {
 	PointID    string `json:"point_id"`
 	EvidenceID string `json:"evidence_id"`
 	NewlyFound bool   `json:"newly_found"`
 	Message    string `json:"message"`
 
-	Cart      Cart       `json:"cart"`
-	SiteCargo CargoStock `json:"site_cargo"`
+	Cart      transport.Cart       `json:"cart"`
+	SiteCargo transport.CargoStock `json:"site_cargo"`
 }
 
 type NPCQuestStatus struct {

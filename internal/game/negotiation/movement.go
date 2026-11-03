@@ -2,6 +2,7 @@ package negotiation
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
 	"cybertown/internal/game/model"
 	"database/sql"
 	"encoding/json"
@@ -151,7 +152,7 @@ func advanceOneMeetingMove(
 		)
 	}
 
-	var character model.NPC
+	var character actor.NPC
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT

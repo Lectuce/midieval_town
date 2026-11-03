@@ -2,25 +2,26 @@ package actor
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/model"
-	"database/sql"
+	"cybertown/internal/game/storage"
 	"fmt"
 )
 
 func GetPlayer(
 	ctx context.Context,
-	db *sql.DB,
+	db storage.DBTX,
 	worldID string,
 	playerID string,
-) (model.Player, error) {
+) (Player, error) {
 	return getPlayer(ctx, db, worldID, playerID)
 }
 
-func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (Player, error) {
+func getPlayer(ctx context.Context, db storage.DBTX, worldID string, playerID string) (Player, error) {
 
-	var player model.Player
+	var player Player
 
-	err := dbtx.QueryRowContext(ctx,
+	err := db.QueryRowContext(ctx,
 		`
 		SELECT
 			world_id, id, name, scene_id, status,
@@ -40,7 +41,7 @@ func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (P
 	)
 
 	if err != nil {
-		return model.Player{}, fmt.Errorf(
+		return Player{}, fmt.Errorf(
 			"get player %q in world %q: %w",
 			playerID,
 			worldID,
@@ -54,10 +55,10 @@ func getPlayer(ctx context.Context, db dbtx, worldID string, playerID string) (P
 
 // 更新玩家位置
 func updatePlayerPosition(ctx context.Context,
-	db dbtx,
+	db storage.DBTX,
 	worldID string,
 	playerID string,
-	position Position,
+	position model.Position,
 	floor int,
 	expectedRevision int64,
 ) error {
@@ -96,7 +97,7 @@ func updatePlayerPosition(ctx context.Context,
 	}
 
 	if affected == 0 {
-		return ErrPlayerRevisionConflict
+		return constError.ErrPlayerRevisionConflict
 	}
 
 	return nil

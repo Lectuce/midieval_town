@@ -1,4 +1,4 @@
-package game
+package storage
 
 import (
 	"context"

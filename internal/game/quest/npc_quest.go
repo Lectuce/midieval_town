@@ -2,6 +2,7 @@ package quest
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
 	"database/sql"
 	"fmt"
 )
@@ -31,7 +32,7 @@ func GetNPCQuestStatus(
 		)
 	}
 
-	if _, err := GetNPC(ctx, db, worldID, npcID); err != nil {
+	if _, err := actor.GetNPC(ctx, db, worldID, npcID); err != nil {
 		return NPCQuestStatus{}, fmt.Errorf("load NPC: %w", err)
 	}
 

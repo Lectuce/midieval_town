@@ -2,7 +2,9 @@ package quest
 
 import (
 	"context"
-	"cybertown/internal/game/model"
+	"cybertown/internal/game/actor"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/transport"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -30,7 +32,7 @@ func InspectAbandonedCart(
 	defer tx.Rollback()
 
 	// 在事务内读取玩家，后续查询和写入也使用 tx。
-	var player model.Player
+	var player actor.Player
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT scene_id, position_x, position_y, floor, status
@@ -50,7 +52,7 @@ func InspectAbandonedCart(
 	}
 
 	if player.Status != "active" {
-		return InvestigationResult{}, ErrPlayerInactive
+		return InvestigationResult{}, constError.ErrPlayerInactive
 	}
 
 	// 必须已经接受货车任务，而且任务仍在进行中。
@@ -65,7 +67,7 @@ func InspectAbandonedCart(
 	`, worldID, playerID, "missing_iron_cart").Scan(&questStatus)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return InvestigationResult{}, ErrQuestNotActive
+		return InvestigationResult{}, constError.ErrQuestNotActive
 	}
 	if err != nil {
 		return InvestigationResult{}, fmt.Errorf(
@@ -73,11 +75,11 @@ func InspectAbandonedCart(
 		)
 	}
 	if questStatus != QuestStatusActive {
-		return InvestigationResult{}, ErrQuestNotActive
+		return InvestigationResult{}, constError.ErrQuestNotActive
 	}
 
 	// 在当前事务中读取货车的真实状态。
-	var cart Cart
+	var cart transport.Cart
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT
@@ -86,7 +88,7 @@ func InspectAbandonedCart(
 			repair_status, capacity_kg, revision
 		FROM carts
 		WHERE world_id = ? AND id = ?
-	`, worldID, AbandonedCartID).Scan(
+	`, worldID, transport.AbandonedCartID).Scan(
 		&cart.WorldID,
 		&cart.ID,
 		&cart.SceneID,
@@ -100,8 +102,8 @@ func InspectAbandonedCart(
 	if errors.Is(err, sql.ErrNoRows) {
 		return InvestigationResult{}, fmt.Errorf(
 			"%w: cart %q",
-			ErrTransportStateMissing,
-			AbandonedCartID,
+			constError.ErrTransportStateMissing,
+			transport.AbandonedCartID,
 		)
 	}
 	if err != nil {
@@ -114,7 +116,7 @@ func InspectAbandonedCart(
 	const interactionDistance = 24.0
 
 	if player.SceneID != cart.SceneID || player.Floor != cart.Floor {
-		return InvestigationResult{}, ErrOutsideInvestigationRange
+		return InvestigationResult{}, constError.ErrOutsideInvestigationRange
 	}
 
 	distance := math.Hypot(
@@ -123,11 +125,11 @@ func InspectAbandonedCart(
 	)
 	if math.IsNaN(distance) || math.IsInf(distance, 0) ||
 		distance > interactionDistance {
-		return InvestigationResult{}, ErrOutsideInvestigationRange
+		return InvestigationResult{}, constError.ErrOutsideInvestigationRange
 	}
 
 	// 玩家到达交互范围后，读取现场铁矿数量。
-	var stock CargoStock
+	var stock transport.CargoStock
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT
@@ -139,8 +141,8 @@ func InspectAbandonedCart(
 			AND item_id = ?
 	`,
 		worldID,
-		CargoLocationCartSite,
-		IronOreItemID,
+		transport.CargoLocationCartSite,
+		transport.IronOreItemID,
 	).Scan(
 		&stock.WorldID,
 		&stock.LocationID,
@@ -151,8 +153,8 @@ func InspectAbandonedCart(
 	if errors.Is(err, sql.ErrNoRows) {
 		return InvestigationResult{}, fmt.Errorf(
 			"%w: cargo stock at %q",
-			ErrTransportStateMissing,
-			CargoLocationCartSite,
+			constError.ErrTransportStateMissing,
+			transport.CargoLocationCartSite,
 		)
 	}
 	if err != nil {
@@ -197,18 +199,18 @@ func InspectAbandonedCart(
 	var repairDescription string
 
 	switch cart.RepairStatus {
-	case CartStatusDamaged:
+	case transport.CartStatusDamaged:
 		repairDescription = "货车已经损坏。"
-	case CartStatusRepairing:
+	case transport.CartStatusRepairing:
 		repairDescription = "货车正在维修。"
-	case CartStatusReady:
+	case transport.CartStatusReady:
 		repairDescription = "货车可以使用。"
 	default:
 		repairDescription = "货车状态未知。"
 	}
 
 	response := InvestigationResult{
-		PointID:    AbandonedCartID,
+		PointID:    transport.AbandonedCartID,
 		EvidenceID: "cart_found",
 		NewlyFound: affected == 1,
 		Message:    "已确认失踪货车的位置。",

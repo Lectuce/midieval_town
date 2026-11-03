@@ -2,6 +2,7 @@ package negotiation
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
 	"cybertown/internal/game/model"
 	"database/sql"
 	"encoding/json"
@@ -268,7 +269,7 @@ func StartNegotiationMeeting(
 	}
 
 	// 在当前事务中读取，不能调用使用 db 的 GetNPC。
-	characters := make([]model.NPC, 2)
+	characters := make([]actor.NPC, 2)
 
 	for i, id := range []string{"merchant", "blacksmith"} {
 		character := &characters[i]

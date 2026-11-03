@@ -2,6 +2,8 @@ package world
 
 import (
 	"context"
+	"cybertown/internal/game/repair"
+	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
 	"time"
@@ -122,7 +124,7 @@ func AdvanceWorldTime(
 		ORDER BY id
 	`,
 		worldID,
-		RepairJobStatusRunning,
+		repair.RepairJobStatusRunning,
 	)
 	if err != nil {
 		return World{}, fmt.Errorf(
@@ -131,10 +133,10 @@ func AdvanceWorldTime(
 	}
 	defer rows.Close()
 
-	var dueJobs []RepairJob
+	var dueJobs []repair.RepairJob
 
 	for rows.Next() {
-		var job RepairJob
+		var job repair.RepairJob
 		var rawStartedAt, rawFinishAt string
 
 		err := rows.Scan(
@@ -211,10 +213,10 @@ func AdvanceWorldTime(
 				AND status = ?
 				AND revision = ?
 		`,
-			RepairJobStatusCompleted,
+			repair.RepairJobStatusCompleted,
 			worldID,
 			job.ID,
-			RepairJobStatusRunning,
+			repair.RepairJobStatusRunning,
 			job.Revision,
 		)
 		if err != nil {
@@ -246,10 +248,10 @@ func AdvanceWorldTime(
 				AND id = ?
 				AND repair_status = ?
 		`,
-			CartStatusReady,
+			transport.CartStatusReady,
 			worldID,
 			job.CartID,
-			CartStatusRepairing,
+			transport.CartStatusRepairing,
 		)
 		if err != nil {
 			return World{}, fmt.Errorf(
@@ -285,7 +287,7 @@ func AdvanceWorldTime(
 		ORDER BY id
 	`,
 		worldID,
-		TransportStatusInTransit,
+		transport.TransportStatusInTransit,
 	)
 	if err != nil {
 		return World{}, fmt.Errorf(
@@ -294,10 +296,10 @@ func AdvanceWorldTime(
 	}
 	defer transportRows.Close()
 
-	var arrivedJobs []TransportJob
+	var arrivedJobs []transport.TransportJob
 
 	for transportRows.Next() {
-		var job TransportJob
+		var job transport.TransportJob
 		var rawStartedAt, rawArriveAt string
 
 		err := transportRows.Scan(
@@ -370,10 +372,10 @@ func AdvanceWorldTime(
 			AND status = ?
 			AND revision = ?
 	`,
-			TransportStatusArrived,
+			transport.TransportStatusArrived,
 			worldID,
 			job.ID,
-			TransportStatusInTransit,
+			transport.TransportStatusInTransit,
 			job.Revision,
 		)
 		if err != nil {
@@ -414,7 +416,7 @@ func AdvanceWorldTime(
 			job.DestinationFloor,
 			worldID,
 			job.CartID,
-			CartStatusReady,
+			transport.CartStatusReady,
 		)
 		if err != nil {
 			return World{}, fmt.Errorf(

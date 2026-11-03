@@ -2,6 +2,9 @@ package quest
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
+	"cybertown/internal/game/constError"
+	"cybertown/internal/game/inventory"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -20,17 +23,17 @@ func AcceptQuest(ctx context.Context, db *sql.DB, worldID string, playerID strin
 		return PlayerQuest{}, err
 	}
 
-	player, err := GetPlayer(ctx, db, worldID, playerID)
+	player, err := actor.GetPlayer(ctx, db, worldID, playerID)
 	if err != nil {
 		return PlayerQuest{}, err
 	}
 
 	if player.Status != "active" {
-		return PlayerQuest{}, ErrPlayerInactive
+		return PlayerQuest{}, constError.ErrPlayerInactive
 	}
 
 	// 确认这个世界中确实存在任务发布者。
-	_, err = GetNPC(ctx, db, worldID, definition.GiverNPCID)
+	_, err = actor.GetNPC(ctx, db, worldID, definition.GiverNPCID)
 	if err != nil {
 		return PlayerQuest{}, fmt.Errorf("load quest giver: %w", err)
 	}
@@ -85,10 +88,10 @@ func CompleteQuest(
 		)
 	}
 
-	if _, err := GetItemDefinition(definition.RequiredItemID); err != nil {
+	if _, err := inventory.GetItemDefinition(definition.RequiredItemID); err != nil {
 		return QuestCompletionResult{}, err
 	}
-	if _, err := GetItemDefinition(definition.RewardItemID); err != nil {
+	if _, err := inventory.GetItemDefinition(definition.RewardItemID); err != nil {
 		return QuestCompletionResult{}, err
 	}
 
@@ -101,7 +104,7 @@ func CompleteQuest(
 	defer tx.Rollback()
 
 	// 读取玩家。
-	var player Player
+	var player actor.Player
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT scene_id, position_x, position_y, floor, status
@@ -138,7 +141,7 @@ func CompleteQuest(
 		&quest.Revision,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return QuestCompletionResult{}, ErrQuestNotActive
+		return QuestCompletionResult{}, constError.ErrQuestNotActive
 	}
 	if err != nil {
 		return QuestCompletionResult{}, fmt.Errorf(
@@ -156,14 +159,14 @@ func CompleteQuest(
 	}
 
 	if quest.Status != QuestStatusActive {
-		return QuestCompletionResult{}, ErrQuestNotActive
+		return QuestCompletionResult{}, constError.ErrQuestNotActive
 	}
 	if player.Status != "active" {
-		return QuestCompletionResult{}, ErrPlayerInactive
+		return QuestCompletionResult{}, constError.ErrPlayerInactive
 	}
 
 	// 读取任务发布者的当前位置。
-	var giver NPC
+	var giver actor.NPC
 
 	err = tx.QueryRowContext(ctx, `
 		SELECT scene_id, position_x, position_y, floor
@@ -183,7 +186,7 @@ func CompleteQuest(
 
 	if player.SceneID != giver.SceneID ||
 		player.Floor != giver.Floor {
-		return QuestCompletionResult{}, ErrOutsideQuestRange
+		return QuestCompletionResult{}, constError.ErrOutsideQuestRange
 	}
 
 	distance := math.Hypot(
@@ -192,7 +195,7 @@ func CompleteQuest(
 	)
 	if math.IsNaN(distance) || math.IsInf(distance, 0) ||
 		distance > 24 {
-		return QuestCompletionResult{}, ErrOutsideQuestRange
+		return QuestCompletionResult{}, constError.ErrOutsideQuestRange
 	}
 
 	// 检查任务要求的证据。
@@ -217,7 +220,7 @@ func CompleteQuest(
 		)
 	}
 	if !hasEvidence {
-		return QuestCompletionResult{}, ErrEvidenceRequired
+		return QuestCompletionResult{}, constError.ErrEvidenceRequired
 	}
 
 	// 条件扣除物品：只有数量足够时才更新。
@@ -248,7 +251,7 @@ func CompleteQuest(
 		)
 	}
 	if affected != 1 {
-		return QuestCompletionResult{}, ErrQuestItemsRequired
+		return QuestCompletionResult{}, constError.ErrQuestItemsRequired
 	}
 
 	// 只有仍处于 active 且版本一致的任务才能完成。
@@ -280,7 +283,7 @@ func CompleteQuest(
 		)
 	}
 	if affected != 1 {
-		return QuestCompletionResult{}, ErrQuestCompletionConflict
+		return QuestCompletionResult{}, constError.ErrQuestCompletionConflict
 	}
 
 	// 发放任务定义中的奖励。

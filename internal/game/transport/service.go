@@ -1,7 +1,8 @@
-package game
+package transport
 
 import (
 	"context"
+	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/model"
 	"database/sql"
 	"fmt"
@@ -54,7 +55,7 @@ func StartCartTransport(
 		)
 	}
 	if affected != 1 {
-		return TransportJob{}, ErrWorldRevisionConflict
+		return TransportJob{}, constError.ErrWorldRevisionConflict
 	}
 
 	// 2. 读取货车状态。

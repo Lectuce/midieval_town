@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"cybertown/internal/game/actor"
 	"database/sql"
 	"fmt"
 )
@@ -19,7 +20,7 @@ func GetNPCInventory(
 	}
 
 	// 区分“NPC 不存在”和“NPC 没有库存记录”。
-	_, err := GetNPC(ctx, db, worldID, npcID)
+	_, err := actor.GetNPC(ctx, db, worldID, npcID)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"load inventory NPC: %w",

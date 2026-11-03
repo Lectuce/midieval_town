@@ -2,6 +2,7 @@ package repair
 
 import (
 	"context"
+	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
 )
@@ -39,7 +40,7 @@ func CreateRepairProposal(
 	proposal := RepairProposal{
 		WorldID:         worldID,
 		ID:              req.ID,
-		CartID:          AbandonedCartID,
+		CartID:          transport.AbandonedCartID,
 		PayerNPCID:      "merchant",
 		WorkerNPCID:     "blacksmith",
 		PriceCoins:      req.PriceCoins,
@@ -87,7 +88,7 @@ func CreateRepairProposal(
 		proposal.Status,
 		worldID,
 		proposal.CartID,
-		CartStatusDamaged,
+		transport.CartStatusDamaged,
 	)
 	if err != nil {
 		return RepairProposal{}, fmt.Errorf(
@@ -158,7 +159,7 @@ func ConfirmRepairProposal(
 
 	if actorNPCID != proposal.PayerNPCID &&
 		actorNPCID != proposal.WorkerNPCID {
-		return RepairProposal{}, ErrRepairProposalParticipant
+		return RepairProposal{}, constError.ErrRepairProposalParticipant
 	}
 
 	// 付款方必须实际收到过报价，不能仅因为名字在报价里就确认。
@@ -194,7 +195,7 @@ func ConfirmRepairProposal(
 	if proposal.Revision != expectedRevision {
 		return RepairProposal{}, fmt.Errorf(
 			"%w: expected %d, current %d",
-			ErrRepairProposalRevisionConflict,
+			transport.ErrRepairProposalRevisionConflict,
 			expectedRevision,
 			proposal.Revision,
 		)
