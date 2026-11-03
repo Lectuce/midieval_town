@@ -1,6 +1,7 @@
 package rouster
 
 import (
+	"cybertown/internal/game"
 	"cybertown/internal/handler"
 	"cybertown/internal/npc"
 	"database/sql"
@@ -8,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetUpRousters(r *gin.Engine, db *sql.DB, dialogueService *npc.DialogueService) {
+func SetUpRousters(r *gin.Engine, db *sql.DB, g *game.Service, dialogueService *npc.DialogueService) {
 
-	r.GET("/api/player", handler.PlayerHandler(db))
+	r.GET("/api/player", handler.PlayerHandler(g))
 
 	chatHandler := handler.NPCChatHandler(dialogueService)
 
@@ -20,7 +21,7 @@ func SetUpRousters(r *gin.Engine, db *sql.DB, dialogueService *npc.DialogueServi
 	r.GET("/api/quests/:questID", handler.QuestHandler(db))
 	r.POST("/api/quests/:questID/accept", handler.AcceptQuestHandler(db))
 
-	r.PUT("/api/player/position", handler.PlayerPosition(db))
+	r.PUT("/api/player/position", handler.PlayerPosition(g))
 	r.POST("/api/investigation-points/abandoned_cart/inspect", handler.AbandonCart(db))
 	r.GET("/api/player/inventory", handler.InventoryHandler(db))
 

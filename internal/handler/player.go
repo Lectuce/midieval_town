@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"cybertown/internal/game"
 	"database/sql"
 	"errors"
@@ -10,11 +11,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func PlayerHandler(db *sql.DB) gin.HandlerFunc {
+type PlayerGame interface {
+	GetPlayer(
+		context.Context,
+		string,
+		string,
+	) (game.Player, error)
+
+	SavePlayerPosition(
+		context.Context,
+		string,
+		string,
+		game.Position,
+		int,
+		int64,
+	) (game.Player, error)
+}
+
+func PlayerHandler(g PlayerGame) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		player, err := game.GetPlayer(
+		player, err := g.GetPlayer(
 			c.Request.Context(),
-			db,
 			"town-1",
 			"player-1",
 		)
@@ -38,7 +55,7 @@ func PlayerHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func PlayerPosition(db *sql.DB) gin.HandlerFunc {
+func PlayerPosition(g PlayerGame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body struct {
 			Position struct {
@@ -61,9 +78,8 @@ func PlayerPosition(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		player, err := game.SavePlayerPosition(
+		player, err := g.SavePlayerPosition(
 			c.Request.Context(),
-			db,
 			"town-1",
 			"player-1",
 			game.Position{

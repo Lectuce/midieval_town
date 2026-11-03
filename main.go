@@ -36,6 +36,8 @@ func main() {
 	}
 	defer db.Close()
 
+	gameService := game.NewService(db)
+
 	err = game.InitWorld(ctx, db, config)
 	if err != nil {
 		log.Fatal(err)
@@ -292,7 +294,7 @@ func main() {
 	}()
 
 	r := gin.Default()
-	rouster.SetUpRousters(r, db, dialogueService)
+	rouster.SetUpRousters(r, db, gameService, dialogueService)
 
 	server := &http.Server{
 		Addr:              "127.0.0.1:8080",

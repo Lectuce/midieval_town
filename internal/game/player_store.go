@@ -6,7 +6,16 @@ import (
 	"fmt"
 )
 
-func GetPlayer(ctx context.Context, db *sql.DB, worldID string, playerID string) (Player, error) {
+func GetPlayer(
+	ctx context.Context,
+	db *sql.DB,
+	worldID string,
+	playerID string,
+) (Player, error) {
+	return getPlayer(ctx, db, worldID, playerID)
+}
+
+func getPlayer(ctx context.Context, db *sql.DB, worldID string, playerID string) (Player, error) {
 
 	var player Player
 
@@ -43,7 +52,7 @@ func GetPlayer(ctx context.Context, db *sql.DB, worldID string, playerID string)
 }
 
 // 更新玩家位置
-func UpadtePlayerPosition(ctx context.Context,
+func updatePlayerPosition(ctx context.Context,
 	db *sql.DB,
 	worldID string,
 	playerID string,
