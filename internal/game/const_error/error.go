@@ -59,3 +59,15 @@ var (
 var ErrWorldRevisionConflict = errors.New(
 	"world revision conflict",
 )
+
+var (
+	ErrInsufficientQuantity = errors.New(
+		"insufficient inventory quantity",
+	)
+	ErrQuantityOverflow = errors.New(
+		"inventory quantity would overflow",
+	)
+	ErrCreditRejected = errors.New(
+		"recipient inventory is missing or would overflow",
+	)
+)

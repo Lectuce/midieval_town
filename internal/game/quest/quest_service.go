@@ -224,21 +224,20 @@ func CompleteQuest(
 	}
 
 	// 条件扣除物品：只有数量足够时才更新。
-	result, err := tx.ExecContext(ctx, `
-		UPDATE player_inventory
-		SET quantity = quantity - ?
-		WHERE world_id = ?
-			AND player_id = ?
-			AND item_id = ?
-			AND quantity >= ?
-	`,
-		definition.RequiredItemCount,
+	err = inventory.ConsumePlayerItemTx(
+		ctx,
+		tx,
 		worldID,
 		playerID,
 		definition.RequiredItemID,
 		definition.RequiredItemCount,
 	)
 	if err != nil {
+		if errors.Is(err, constError.ErrInsufficientQuantity) {
+			return QuestCompletionResult{},
+				constError.ErrQuestItemsRequired
+		}
+
 		return QuestCompletionResult{}, fmt.Errorf(
 			"consume quest item: %w", err,
 		)
@@ -255,7 +254,7 @@ func CompleteQuest(
 	}
 
 	// 只有仍处于 active 且版本一致的任务才能完成。
-	result, err = tx.ExecContext(ctx, `
+	result, err := tx.ExecContext(ctx, `
 		UPDATE player_quests
 		SET status = 'completed',
 			revision = revision + 1
@@ -287,15 +286,9 @@ func CompleteQuest(
 	}
 
 	// 发放任务定义中的奖励。
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO player_inventory (
-			world_id, player_id, item_id, quantity
-		)
-		VALUES (?, ?, ?, ?)
-		ON CONFLICT(world_id, player_id, item_id)
-		DO UPDATE SET
-			quantity = player_inventory.quantity + excluded.quantity
-	`,
+	err = inventory.AddPlayerItemTx(
+		ctx,
+		tx,
 		worldID,
 		playerID,
 		definition.RewardItemID,

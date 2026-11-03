@@ -1,10 +1,10 @@
-package inventory
+package quest
 
 import (
 	"context"
 	"cybertown/internal/game/actor"
 	constError "cybertown/internal/game/const_error"
-	"cybertown/internal/game/quest"
+	"cybertown/internal/game/inventory"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -102,7 +102,7 @@ func ClaimShipmentReceipt(
 		if err != nil {
 			return ItemClaimResult{}, fmt.Errorf("load claim quest: %w", err)
 		}
-		if questStatus != quest.QuestStatusActive {
+		if questStatus != QuestStatusActive {
 			return ItemClaimResult{}, constError.ErrQuestNotActive
 		}
 
@@ -159,17 +159,18 @@ func ClaimShipmentReceipt(
 
 		// 只有首次登记成功，才给背包增加一份物品。
 		if newlyClaimed {
-			_, err = tx.ExecContext(ctx, `
-				INSERT INTO player_inventory (
-					world_id, player_id, item_id, quantity
-				)
-				VALUES (?, ?, ?, 1)
-				ON CONFLICT(world_id, player_id, item_id)
-				DO UPDATE SET
-					quantity = player_inventory.quantity + excluded.quantity
-			`, worldID, playerID, itemID)
+			err = inventory.AddPlayerItemTx(
+				ctx,
+				tx,
+				worldID,
+				playerID,
+				itemID,
+				1,
+			)
 			if err != nil {
-				return ItemClaimResult{}, fmt.Errorf("add inventory item: %w", err)
+				return ItemClaimResult{}, fmt.Errorf(
+					"grant shipment receipt: %w", err,
+				)
 			}
 		}
 	}
@@ -177,17 +178,15 @@ func ClaimShipmentReceipt(
 	// 返回当前持有数量；没有背包记录时按 0 处理。
 	var quantity int64
 
-	err = tx.QueryRowContext(ctx, `
-		SELECT COALESCE((
-			SELECT quantity
-			FROM player_inventory
-			WHERE world_id = ?
-				AND player_id = ?
-				AND item_id = ?
-		), 0)
-	`, worldID, playerID, itemID).Scan(&quantity)
+	quantity, err = inventory.GetPlayerQuantityTx(
+		ctx,
+		tx,
+		worldID,
+		playerID,
+		itemID,
+	)
 	if err != nil {
-		return ItemClaimResult{}, fmt.Errorf("load item quantity: %w", err)
+		return ItemClaimResult{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
