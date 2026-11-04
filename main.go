@@ -6,6 +6,13 @@ import (
 	"cybertown/internal/agent/engine"
 	"cybertown/internal/director"
 	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
+	"cybertown/internal/game/inventory"
+	gamenegotiation "cybertown/internal/game/negotiation"
+	"cybertown/internal/game/repair"
+	"cybertown/internal/game/storage"
+	"cybertown/internal/game/transport"
+	worldstate "cybertown/internal/game/world"
 	"cybertown/internal/negotiation"
 	"cybertown/internal/npc"
 	"cybertown/internal/rouster"
@@ -25,12 +32,12 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	config, err := game.LoadTownConfig("config/town/town.json")
+	config, err := worldstate.LoadTownConfig("config/town/town.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	db, err := game.OpenDatabase(ctx, "data/game.db")
+	db, err := storage.OpenDatabase(ctx, "data/game.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,26 +45,26 @@ func main() {
 
 	gameService := game.NewService(db)
 
-	err = game.InitWorld(ctx, db, config)
+	err = worldstate.InitWorld(ctx, db, config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = game.InitTransport(ctx, db, config.World.ID)
+	err = transport.InitTransport(ctx, db, config.World.ID)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = game.InitNPCInventory(ctx, db, config.World.ID)
+	err = inventory.InitNPCInventory(ctx, db, config.World.ID)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	repairJob, err := game.GetActiveRepairJob(
+	repairJob, err := repair.GetActiveRepairJob(
 		ctx,
 		db,
 		config.World.ID,
-		game.AbandonedCartID,
+		transport.AbandonedCartID,
 	)
 
 	switch {
@@ -76,22 +83,22 @@ func main() {
 		)
 	}
 
-	cart, err := game.GetCart(
+	cart, err := transport.GetCart(
 		ctx,
 		db,
 		config.World.ID,
-		game.AbandonedCartID,
+		transport.AbandonedCartID,
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	stock, err := game.GetCargoStock(
+	stock, err := transport.GetCargoStock(
 		ctx,
 		db,
 		config.World.ID,
-		game.CargoLocationCartSite,
-		game.IronOreItemID,
+		transport.CargoLocationCartSite,
+		transport.IronOreItemID,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -105,7 +112,7 @@ func main() {
 		stock.QuantityKg,
 	)
 
-	world, err := game.GetWorld(ctx, db, config.World.ID)
+	world, err := worldstate.GetWorld(ctx, db, config.World.ID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,7 +132,7 @@ func main() {
 
 	fmt.Println("数据库表结构已创建：data/game.db")
 
-	player, err := game.GetPlayer(ctx, db, "town-1", "player-1")
+	player, err := actor.GetPlayer(ctx, db, "town-1", "player-1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -141,14 +148,14 @@ func main() {
 	)
 
 	if negotiationID := os.Getenv("START_MEETING_ID"); negotiationID != "" {
-		route, err := game.LoadNegotiationMeetingRoute(
+		route, err := gamenegotiation.LoadNegotiationMeetingRoute(
 			"config/town/negotiation_meeting.json",
 		)
 		if err != nil {
 			log.Fatalf("load meeting route: %v", err)
 		}
 
-		err = game.StartNegotiationMeeting(
+		err = gamenegotiation.StartNegotiationMeeting(
 			ctx,
 			db,
 			config.World.ID,
@@ -239,9 +246,9 @@ func main() {
 		workerCtx,
 		5*time.Second,
 	)
-	err = game.RecoverRepairCoordination(recoverCtx, db)
+	err = repair.RecoverRepairCoordination(recoverCtx, db)
 	if err == nil {
-		err = game.RecoverNegotiationInvitations(recoverCtx, db)
+		err = gamenegotiation.RecoverNegotiationInvitations(recoverCtx, db)
 	}
 	cancelRecovery()
 	if err != nil {

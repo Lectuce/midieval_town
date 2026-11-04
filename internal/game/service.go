@@ -1,13 +1,18 @@
 package game
 
-import "database/sql"
+import (
+	"cybertown/internal/game/actor"
+	"database/sql"
+)
 
 type Service struct {
-	db *sql.DB
+	db     *sql.DB
+	Actors *actor.Service
 }
 
 func NewService(db *sql.DB) *Service {
 	return &Service{
-		db: db,
+		db:     db,
+		Actors: actor.NewService(db),
 	}
 }

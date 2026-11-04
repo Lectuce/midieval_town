@@ -2,24 +2,23 @@ package npc
 
 import (
 	"context"
+	"cybertown/internal/agent/engine"
+	"cybertown/internal/game/actor"
+	gamenegotiation "cybertown/internal/game/negotiation"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
 	"unicode/utf8"
-
-	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
-	"cybertown/internal/game/actor"
 )
 
 func (a *Agent) RespondToNegotiation(
 	ctx context.Context,
 	character actor.NPC,
-	invitation game.NegotiationInvitation,
-) (game.InvitationDecision, error) {
+	invitation gamenegotiation.NegotiationInvitation,
+) (gamenegotiation.InvitationDecision, error) {
 	if a == nil || a.Engine == nil {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"NPC engine is required",
 		)
 	}
@@ -28,7 +27,7 @@ func (a *Agent) RespondToNegotiation(
 
 	if character.WorldID != n.WorldID ||
 		character.ID != invitation.NPCID {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"invitation recipient does not match NPC",
 		)
 	}
@@ -41,7 +40,7 @@ func (a *Agent) RespondToNegotiation(
 	case "blacksmith":
 		counterpart = "商人马丁"
 	default:
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"unsupported negotiation NPC",
 		)
 	}
@@ -62,7 +61,7 @@ func (a *Agent) RespondToNegotiation(
 		"current_activity": character.CurrentActivity,
 	})
 	if err != nil {
-		return game.InvitationDecision{}, err
+		return gamenegotiation.InvitationDecision{}, err
 	}
 
 	result, err := a.Engine.RunTurn(ctx, engine.TurnRequest{
@@ -110,23 +109,23 @@ speech 是对玩家说的一两句自然台词。
 		ToolSet: "negotiation_invitation",
 	})
 	if err != nil {
-		return game.InvitationDecision{}, err
+		return gamenegotiation.InvitationDecision{}, err
 	}
 
 	if result.StopReason != "end_turn" {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"invitation response incomplete: %s",
 			result.StopReason,
 		)
 	}
 
-	var decision game.InvitationDecision
+	var decision gamenegotiation.InvitationDecision
 
 	decoder := json.NewDecoder(strings.NewReader(result.Text))
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&decision); err != nil {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"decode invitation response: %w", err,
 		)
 	}
@@ -134,7 +133,7 @@ speech 是对玩家说的一两句自然台词。
 	// 禁止一个 JSON 后面再跟另一份 JSON 或说明文字。
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"unexpected content after invitation response",
 		)
 	}
@@ -143,7 +142,7 @@ speech 是对玩家说的一两句自然台词。
 
 	if decision.Action != "accept_invitation" &&
 		decision.Action != "decline_invitation" {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"invalid invitation action",
 		)
 	}
@@ -151,7 +150,7 @@ speech 是对玩家说的一两句自然台词。
 	if decision.Speech == "" ||
 		!utf8.ValidString(decision.Speech) ||
 		utf8.RuneCountInString(decision.Speech) > 256 {
-		return game.InvitationDecision{}, fmt.Errorf(
+		return gamenegotiation.InvitationDecision{}, fmt.Errorf(
 			"invalid invitation speech",
 		)
 	}

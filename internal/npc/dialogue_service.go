@@ -2,7 +2,6 @@ package npc
 
 import (
 	"context"
-	"cybertown/internal/game"
 	"cybertown/internal/game/actor"
 	"cybertown/internal/game/repair"
 	"database/sql"
@@ -248,7 +247,7 @@ func (s *DialogueService) Chat(
 		)
 	}
 
-	repairFacts, err := game.GetRepairCoordinationFacts(
+	repairFacts, err := repair.GetRepairCoordinationFacts(
 		ctx,
 		s.db,
 		character.WorldID,

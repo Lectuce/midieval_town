@@ -7,10 +7,10 @@ import (
 	"log"
 	"time"
 
-	"cybertown/internal/game"
 	"cybertown/internal/game/actor"
 	constError "cybertown/internal/game/const_error"
 	"cybertown/internal/game/negotiation"
+	gamenegotiation "cybertown/internal/game/negotiation"
 	"cybertown/internal/game/repair"
 	"cybertown/internal/npc"
 )
@@ -48,7 +48,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) processOne(ctx context.Context) error {
-	job, err := negotiation.ClaimNegotiationInvitation(ctx, s.DB)
+	job, err := gamenegotiation.ClaimNegotiationInvitation(ctx, s.DB)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (s *Service) processOne(ctx context.Context) error {
 		job.NPCID,
 	)
 
-	var decision game.InvitationDecision
+	var decision negotiation.InvitationDecision
 
 	if workErr == nil {
 		job.NPCRevision = character.Revision
@@ -104,7 +104,7 @@ func (s *Service) processOne(ctx context.Context) error {
 			workErr,
 		)
 
-		decision = game.InvitationDecision{
+		decision = gamenegotiation.InvitationDecision{
 			Action: "failed",
 			Speech: "本次邀请处理失败，尚未取得角色决定。",
 		}

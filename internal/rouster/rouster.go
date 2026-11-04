@@ -11,7 +11,7 @@ import (
 
 func SetUpRousters(r *gin.Engine, db *sql.DB, g *game.Service, dialogueService *npc.DialogueService) {
 
-	r.GET("/api/player", handler.PlayerHandler(g))
+	r.GET("/api/player", handler.PlayerHandler(g.Actors))
 
 	chatHandler := handler.NPCChatHandler(dialogueService)
 
@@ -21,7 +21,7 @@ func SetUpRousters(r *gin.Engine, db *sql.DB, g *game.Service, dialogueService *
 	r.GET("/api/quests/:questID", handler.QuestHandler(db))
 	r.POST("/api/quests/:questID/accept", handler.AcceptQuestHandler(db))
 
-	r.PUT("/api/player/position", handler.PlayerPosition(g))
+	r.PUT("/api/player/position", handler.PlayerPosition(g.Actors))
 	r.POST("/api/investigation-points/abandoned_cart/inspect", handler.AbandonCart(db))
 	r.GET("/api/player/inventory", handler.InventoryHandler(db))
 
