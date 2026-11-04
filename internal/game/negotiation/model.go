@@ -80,3 +80,11 @@ type CreateNegotiationRequest struct {
 	ProposalID       string
 	ExpectedRevision int64
 }
+
+// 这里只寻找候选会话，真正能否出发仍由
+// StartNegotiationMeeting 在事务中重新检查。
+type ReadyMeeting struct {
+	WorldID  string
+	ID       string
+	Revision int64
+}

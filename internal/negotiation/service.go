@@ -9,7 +9,6 @@ import (
 
 	"cybertown/internal/game/actor"
 	constError "cybertown/internal/game/const_error"
-	"cybertown/internal/game/negotiation"
 	gamenegotiation "cybertown/internal/game/negotiation"
 	"cybertown/internal/game/repair"
 	"cybertown/internal/npc"
@@ -62,7 +61,7 @@ func (s *Service) processOne(ctx context.Context) error {
 		job.NPCID,
 	)
 
-	var decision negotiation.InvitationDecision
+	var decision gamenegotiation.InvitationDecision
 
 	if workErr == nil {
 		job.NPCRevision = character.Revision
@@ -117,7 +116,7 @@ func (s *Service) processOne(ctx context.Context) error {
 	)
 	defer cancelSave()
 
-	err = negotiation.FinishNegotiationInvitation(
+	err = gamenegotiation.FinishNegotiationInvitation(
 		saveCtx,
 		s.DB,
 		job,
