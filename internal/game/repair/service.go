@@ -119,6 +119,13 @@ func StartCartRepair(
 		return job, nil
 	}
 
+	err = CheckRepairNegotiation(
+		ctx, tx, worldID, proposal.CartID, "",
+	)
+	if err != nil {
+		return RepairJob{}, err
+	}
+
 	// 3. 检查版本、确认状态和条款。
 	if proposal.Revision != expectedRevision {
 		return RepairJob{}, fmt.Errorf(

@@ -2,14 +2,14 @@ package repair
 
 import (
 	"context"
-	"database/sql"
+	"cybertown/internal/game/storage"
 	"fmt"
 	"time"
 )
 
 func GetActiveRepairJob(
 	ctx context.Context,
-	db *sql.DB,
+	db storage.DBTX,
 	worldID string,
 	cartID string,
 ) (RepairJob, error) {

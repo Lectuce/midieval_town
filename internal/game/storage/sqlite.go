@@ -515,6 +515,34 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_npc_move_jobs_running
 ON npc_move_jobs(world_id, npc_id)
 WHERE status = 'running';
 
+
+ALTER TABLE negotiation_events
+ADD COLUMN payload_json TEXT NOT NULL DEFAULT '{}';
+
+ALTER TABLE negotiations
+ADD COLUMN model_calls INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE negotiations
+ADD COLUMN end_reason TEXT NOT NULL DEFAULT '';
+
+
+CREATE TABLE IF NOT EXISTS negotiation_event_receipts (
+    world_id TEXT NOT NULL,
+    negotiation_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    npc_id TEXT NOT NULL,
+
+    PRIMARY KEY (world_id, event_id, npc_id),
+
+    FOREIGN KEY (world_id, negotiation_id, event_id)
+        REFERENCES negotiation_events(world_id, negotiation_id, id),
+
+    FOREIGN KEY (world_id, negotiation_id, npc_id)
+        REFERENCES negotiation_participants(
+            world_id, negotiation_id, npc_id
+        )
+);
+
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

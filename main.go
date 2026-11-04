@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -147,13 +146,11 @@ func main() {
 		player.Revision,
 	)
 
-	if negotiationID := os.Getenv("START_MEETING_ID"); negotiationID != "" {
-		meetingRoute, err := gamenegotiation.LoadNegotiationMeetingRoute(
-			"config/town/negotiation_meeting.json",
-		)
-		if err != nil {
-			log.Fatalf("load meeting route: %v", err)
-		}
+	meetingRoute, err := gamenegotiation.LoadNegotiationMeetingRoute(
+		"config/town/negotiation_meeting.json",
+	)
+	if err != nil {
+		log.Fatalf("load meeting route: %v", err)
 	}
 
 	npcEngine, err := engine.New(

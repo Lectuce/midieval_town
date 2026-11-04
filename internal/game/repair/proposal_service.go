@@ -2,10 +2,11 @@ package repair
 
 import (
 	"context"
-	constError "cybertown/internal/game/const_error"
-	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
+
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/transport"
 )
 
 func CreateRepairProposal(
@@ -14,31 +15,46 @@ func CreateRepairProposal(
 	worldID string,
 	req CreateRepairProposalRequest,
 ) (RepairProposal, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return RepairProposal{}, err
+	}
+	defer tx.Rollback()
+
+	proposal, err := CreateRepairProposalTx(ctx, tx, worldID, req, "")
+	if err != nil {
+		return RepairProposal{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return RepairProposal{}, err
+	}
+	return proposal, nil
+}
+
+// negotiationID 只能由服务端协商执行器提供，不能来自模型参数。
+func CreateRepairProposalTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	worldID string,
+	req CreateRepairProposalRequest,
+	negotiationID string,
+) (RepairProposal, error) {
 	if worldID == "" || req.ID == "" {
-		return RepairProposal{}, fmt.Errorf(
-			"world id and proposal id are required",
-		)
+		return RepairProposal{}, fmt.Errorf("world id and proposal id are required")
+	}
+	if req.PriceCoins < 0 || req.MaterialCount <= 0 ||
+		req.DurationMinutes < 1 || req.DurationMinutes > 1440 {
+		return RepairProposal{}, fmt.Errorf("invalid repair terms")
 	}
 
-	if req.PriceCoins < 0 {
-		return RepairProposal{}, fmt.Errorf(
-			"repair price cannot be negative",
-		)
+	if err := CheckRepairNegotiation(
+		ctx, tx, worldID, transport.AbandonedCartID, negotiationID,
+	); err != nil {
+		return RepairProposal{}, err
 	}
 
-	if req.MaterialCount <= 0 {
-		return RepairProposal{}, fmt.Errorf(
-			"material count must be positive",
-		)
-	}
-
-	if req.DurationMinutes < 1 || req.DurationMinutes > 1440 {
-		return RepairProposal{}, fmt.Errorf(
-			"repair duration must be between 1 and 1440 minutes",
-		)
-	}
-
-	proposal := RepairProposal{
+	p := RepairProposal{
 		WorldID:         worldID,
 		ID:              req.ID,
 		CartID:          transport.AbandonedCartID,
@@ -51,86 +67,43 @@ func CreateRepairProposal(
 		Revision:        1,
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"begin repair proposal: %w", err,
-		)
-	}
-	defer tx.Rollback()
-
-	// 只针对当前仍然损坏的货车创建提议。
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO repair_proposals (
 			world_id, id, cart_id,
 			payer_npc_id, worker_npc_id,
 			price_coins, material_count, duration_minutes,
-			payer_confirmed, worker_confirmed,
-			status, revision
+			payer_confirmed, worker_confirmed, status, revision
 		)
-		SELECT
-			?, ?, id,
-			?, ?,
-			?, ?, ?,
-			0, 0,
-			?, 1
+		SELECT ?, ?, id, ?, ?, ?, ?, ?, 0, 0, 'proposed', 1
 		FROM carts
-		WHERE world_id = ?
-			AND id = ?
-			AND repair_status = ?
+		WHERE world_id = ? AND id = ? AND repair_status = 'damaged'
 	`,
-		proposal.WorldID,
-		proposal.ID,
-		proposal.PayerNPCID,
-		proposal.WorkerNPCID,
-		proposal.PriceCoins,
-		proposal.MaterialCount,
-		proposal.DurationMinutes,
-		proposal.Status,
-		worldID,
-		proposal.CartID,
-		transport.CartStatusDamaged,
+		p.WorldID, p.ID, p.PayerNPCID, p.WorkerNPCID,
+		p.PriceCoins, p.MaterialCount, p.DurationMinutes,
+		worldID, p.CartID,
 	)
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"create repair proposal: %w", err,
-		)
+		return RepairProposal{}, err
 	}
 
-	affected, err := result.RowsAffected()
+	count, err := result.RowsAffected()
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"read repair proposal insert result: %w", err,
-		)
+		return RepairProposal{}, err
 	}
-	if affected == 0 {
-		return RepairProposal{}, fmt.Errorf(
-			"cart is missing or does not require repair",
-		)
+	if count != 1 {
+		return RepairProposal{}, fmt.Errorf("cart does not require repair")
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		UPDATE worlds
-		SET revision = revision + 1
-		WHERE id = ?
+		UPDATE worlds SET revision = revision + 1 WHERE id = ?
 	`, worldID)
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"update world proposal revision: %w", err,
-		)
+		return RepairProposal{}, err
 	}
 
-	if err := tx.Commit(); err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"commit repair proposal: %w", err,
-		)
-	}
-
-	return proposal, nil
+	return p, nil
 }
 
-// actorNPCID 必须由服务端可信的角色上下文提供，
-// 不能直接使用玩家请求或模型工具参数里的 NPC ID。
 func ConfirmRepairProposal(
 	ctx context.Context,
 	db *sql.DB,
@@ -139,36 +112,64 @@ func ConfirmRepairProposal(
 	actorNPCID string,
 	expectedRevision int64,
 ) (RepairProposal, error) {
-	if actorNPCID == "" {
-		return RepairProposal{}, fmt.Errorf(
-			"confirming NPC id is required",
-		)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return RepairProposal{}, err
 	}
-	if expectedRevision < 1 {
-		return RepairProposal{}, fmt.Errorf(
-			"expected revision must be positive",
-		)
-	}
+	defer tx.Rollback()
 
-	// 在开启事务之前读取，避免占用唯一连接后再调用 db 查询。
-	proposal, err := GetRepairProposal(
-		ctx, db, worldID, proposalID,
+	p, err := ConfirmRepairProposalTx(
+		ctx, tx, worldID, proposalID,
+		actorNPCID, expectedRevision, "",
 	)
 	if err != nil {
 		return RepairProposal{}, err
 	}
 
-	if actorNPCID != proposal.PayerNPCID &&
-		actorNPCID != proposal.WorkerNPCID {
-		return RepairProposal{}, constError.ErrRepairProposalParticipant
+	if err := tx.Commit(); err != nil {
+		return RepairProposal{}, err
+	}
+	return p, nil
+}
+
+func ConfirmRepairProposalTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	worldID string,
+	proposalID string,
+	actorNPCID string,
+	expectedRevision int64,
+	negotiationID string,
+) (RepairProposal, error) {
+	if actorNPCID == "" || expectedRevision < 1 {
+		return RepairProposal{}, fmt.Errorf("invalid confirmation")
 	}
 
-	// 付款方必须实际收到过报价，不能仅因为名字在报价里就确认。
-	// 工作者创建报价并确认自己，不经过这个检查。
-	if actorNPCID == proposal.PayerNPCID {
-		var received bool
+	p, err := GetRepairProposal(ctx, tx, worldID, proposalID)
+	if err != nil {
+		return RepairProposal{}, err
+	}
 
-		err := db.QueryRowContext(ctx, `
+	if err := CheckRepairNegotiation(
+		ctx, tx, worldID, p.CartID, negotiationID,
+	); err != nil {
+		return RepairProposal{}, err
+	}
+
+	if actorNPCID != p.PayerNPCID && actorNPCID != p.WorkerNPCID {
+		return RepairProposal{}, constError.ErrRepairProposalParticipant
+	}
+	if p.Revision != expectedRevision {
+		return RepairProposal{}, constError.ErrRepairProposalRevisionConflict
+	}
+	if p.Status != RepairProposalStatusProposed &&
+		p.Status != RepairProposalStatusConfirmed {
+		return RepairProposal{}, constError.ErrRepairProposalNotConfirmable
+	}
+
+	if actorNPCID == p.PayerNPCID {
+		var received bool
+		err = tx.QueryRowContext(ctx, `
 			SELECT EXISTS (
 				SELECT 1
 				FROM repair_proposal_deliveries
@@ -177,116 +178,60 @@ func ConfirmRepairProposal(
 					AND recipient_npc_id = ?
 					AND received_at IS NOT NULL
 			)
-		`,
-			worldID,
-			proposalID,
-			actorNPCID,
-		).Scan(&received)
+		`, worldID, proposalID, actorNPCID).Scan(&received)
 		if err != nil {
-			return RepairProposal{}, fmt.Errorf(
-				"check repair proposal receipt: %w", err,
-			)
+			return RepairProposal{}, err
 		}
-
 		if !received {
 			return RepairProposal{}, constError.ErrRepairProposalDeliveryDenied
 		}
-	}
 
-	if proposal.Revision != expectedRevision {
-		return RepairProposal{}, fmt.Errorf(
-			"%w: expected %d, current %d",
-			constError.ErrRepairProposalRevisionConflict,
-			expectedRevision,
-			proposal.Revision,
-		)
-	}
-
-	if proposal.Status != RepairProposalStatusProposed &&
-		proposal.Status != RepairProposalStatusConfirmed {
-		return RepairProposal{}, constError.ErrRepairProposalNotConfirmable
-	}
-
-	// 同一参与者已经确认过，无需再次更新。
-	if actorNPCID == proposal.PayerNPCID {
-		if proposal.PayerConfirmed {
-			return proposal, nil
+		if p.PayerConfirmed {
+			return p, nil
 		}
-		proposal.PayerConfirmed = true
+		p.PayerConfirmed = true
 	} else {
-		if proposal.WorkerConfirmed {
-			return proposal, nil
+		if p.WorkerConfirmed {
+			return p, nil
 		}
-		proposal.WorkerConfirmed = true
+		p.WorkerConfirmed = true
 	}
 
-	if proposal.PayerConfirmed && proposal.WorkerConfirmed {
-		proposal.Status = RepairProposalStatusConfirmed
+	if p.PayerConfirmed && p.WorkerConfirmed {
+		p.Status = RepairProposalStatusConfirmed
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"begin repair confirmation: %w", err,
-		)
-	}
-	defer tx.Rollback()
-
-	// 更新时再次检查版本，防止覆盖其他参与者刚完成的确认。
 	result, err := tx.ExecContext(ctx, `
 		UPDATE repair_proposals
 		SET payer_confirmed = ?,
 			worker_confirmed = ?,
 			status = ?,
 			revision = revision + 1
-		WHERE world_id = ?
-			AND id = ?
-			AND revision = ?
-			AND status = ?
+		WHERE world_id = ? AND id = ?
+			AND revision = ? AND status = 'proposed'
 	`,
-		proposal.PayerConfirmed,
-		proposal.WorkerConfirmed,
-		proposal.Status,
-		worldID,
-		proposalID,
-		expectedRevision,
-		RepairProposalStatusProposed,
+		p.PayerConfirmed, p.WorkerConfirmed, p.Status,
+		worldID, proposalID, expectedRevision,
 	)
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"confirm repair proposal: %w", err,
-		)
+		return RepairProposal{}, err
 	}
 
-	affected, err := result.RowsAffected()
+	count, err := result.RowsAffected()
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"read repair confirmation result: %w", err,
-		)
+		return RepairProposal{}, err
 	}
-	if affected == 0 {
+	if count != 1 {
 		return RepairProposal{}, constError.ErrRepairProposalRevisionConflict
 	}
 
 	_, err = tx.ExecContext(ctx, `
-		UPDATE worlds
-		SET revision = revision + 1
-		WHERE id = ?
+		UPDATE worlds SET revision = revision + 1 WHERE id = ?
 	`, worldID)
 	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"update world confirmation revision: %w", err,
-		)
+		return RepairProposal{}, err
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return RepairProposal{}, fmt.Errorf(
-			"commit repair confirmation: %w", err,
-		)
-	}
-
-	proposal.Revision++
-
-	return proposal, nil
+	p.Revision++
+	return p, nil
 }

@@ -9,3 +9,11 @@ const (
 	NegotiationStatusCancelled  = "cancelled"
 	NegotiationStatusFailed     = "failed"
 )
+
+// DiscussionWork.Kind
+const (
+	WorkReviewProposal = "review_proposal"
+	WorkClarify        = "clarify"
+	WorkCounteroffer   = "counteroffer"
+	WorkDirector       = "director"
+)
