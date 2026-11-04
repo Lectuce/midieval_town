@@ -310,6 +310,13 @@ func FinishRepairCoordination(
 					AND p.status = 'proposed'
 					AND p.worker_confirmed = 1
 					AND p.payer_confirmed = 0
+					AND NOT EXISTS (
+						SELECT 1
+						FROM negotiations n
+						WHERE n.world_id = p.world_id
+							AND n.cart_id = p.cart_id
+							AND n.status IN ('inviting', 'travelling', 'discussing')
+					)
 			) THEN ? ELSE 'stale' END,
 			plan_action = ?,
 			plan_reason = ?

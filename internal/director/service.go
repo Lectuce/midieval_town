@@ -110,6 +110,24 @@ func (s *Service) processOne(ctx context.Context) (resultErr error) {
 		return err
 	}
 
+	// 货车正在会面协商时，旧协调流程不再处理它。
+	if err := repair.CheckRepairNegotiation(
+		ctx, s.DB, event.WorldID, proposal.CartID, "",
+	); err != nil {
+		if !errors.Is(err, repair.ErrRepairInNegotiation) {
+			return err
+		}
+
+		_, err = repair.FinishRepairCoordination(
+			ctx,
+			s.DB,
+			event,
+			"wait",
+			"该货车正在会面协商",
+		)
+		return err
+	}
+
 	// 已经失效的事件不再消耗模型调用。
 	if proposal.Revision != event.ProposalRevision ||
 		proposal.Status != repair.RepairProposalStatusProposed ||
