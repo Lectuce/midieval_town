@@ -94,6 +94,17 @@ func RecordRepairResponse(
 	}
 	defer tx.Rollback()
 
+	proposal, err := GetRepairProposal(ctx, tx, worldID, proposalID)
+	if err != nil {
+		return RepairCoordinationEvent{}, err
+	}
+
+	if err := CheckRepairNegotiation(
+		ctx, tx, worldID, proposal.CartID, "",
+	); err != nil {
+		return RepairCoordinationEvent{}, err
+	}
+
 	// 当前开发预算：
 	// 每份报价最多保存 3 次不同意见，间隔至少 30 秒。
 	// 仅允许对已经收到、尚未接受的有效报价提出意见。

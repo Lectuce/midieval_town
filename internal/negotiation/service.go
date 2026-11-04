@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"cybertown/internal/director"
 	"cybertown/internal/game/actor"
 	constError "cybertown/internal/game/const_error"
 	gamenegotiation "cybertown/internal/game/negotiation"
@@ -17,6 +18,7 @@ import (
 type Service struct {
 	DB           *sql.DB
 	Agent        *npc.Agent
+	Director     *director.Service
 	MeetingRoute gamenegotiation.NegotiationMeetingRoute
 }
 
@@ -51,6 +53,15 @@ func (s *Service) Run(ctx context.Context) {
 				}
 				return
 			}
+
+			if err := s.processDiscussion(ctx); err != nil &&
+				!errors.Is(err, sql.ErrNoRows) {
+				if ctx.Err() == nil {
+					log.Printf("discussion worker stopped: %v", err)
+				}
+				return
+			}
+
 		}
 	}
 }

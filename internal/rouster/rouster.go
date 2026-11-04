@@ -32,8 +32,9 @@ func SetUpRousters(r *gin.Engine, db *sql.DB, g *game.Service, dialogueService *
 
 	r.POST("/api/negotiations", handler.CreateNegotiationHandler(db))
 	r.GET("/api/negotiations/:id", handler.GetNegotiationHandler(db))
-	r.POST("/api/negotiations/:id/messages")
-	r.POST("/api/negotiations/:id/cancel")
+	r.POST("/api/negotiations/:id/messages", handler.DiscussionMessageHandler(db))
+	r.POST("/api/negotiations/:id/cancel", handler.CancelNegotiationHandler(db))
+	r.GET("/api/player/negotiations/latest", handler.LatestNegotiationHandler(db))
 	r.GET("/api/npcs/positions", handler.NPCPositionsHandler(db))
 
 }

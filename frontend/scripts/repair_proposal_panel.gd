@@ -56,6 +56,7 @@ func _ready() -> void:
 	"res://scripts/negotiation_invite.gd"
 	).new()
 	add_child(_meeting_controls)
+	_meeting_controls.proposal_changed.connect(_apply_meeting_proposal)
 
 	hide()
 
@@ -322,3 +323,36 @@ func _cancel_request() -> void:
 
 func _exit_tree() -> void:
 	_cancel_request()
+
+
+func _apply_meeting_proposal(proposal: Dictionary) -> void:
+	if not _opened:
+		return
+
+	var proposal_id := str(proposal.get("id", ""))
+	if proposal_id.is_empty():
+		return
+
+	var index := -1
+	for i in range(_cards.size()):
+		if str(_cards[i].get("id", "")) == proposal_id:
+			index = i
+			break
+
+	if index < 0:
+		index = _cards.size()
+		_cards.append(proposal.duplicate(true))
+		_selector.add_item("")
+	else:
+		_cards[index] = proposal.duplicate(true)
+
+	_selector.set_item_text(
+		index,
+		"维修报价 %d：工钱 %d，工时 %d 分钟" % [
+			index + 1,
+			int(proposal.get("price_coins", 0)),
+			int(proposal.get("duration_minutes", 0))
+		]
+	)
+	_selector.select(index)
+	_render()

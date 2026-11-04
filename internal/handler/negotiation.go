@@ -127,3 +127,91 @@ func GetNegotiationHandler(db *sql.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+func LatestNegotiationHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		view, err := negotiation.GetLatestMeeting(
+			c.Request.Context(), db, "town-1", "player-1",
+		)
+		c.Header("Cache-Control", "no-store")
+
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusOK, gin.H{"negotiation": nil})
+			return
+		}
+		if err != nil {
+			log.Printf("latest negotiation: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "查询会面失败。",
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"negotiation": view})
+	}
+}
+
+func DiscussionMessageHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var body struct {
+			RequestID string `json:"request_id" binding:"required,max=128"`
+			Message   string `json:"message" binding:"required"`
+		}
+
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "插话参数不正确。"})
+			return
+		}
+
+		err := negotiation.AddDiscussionMessage(
+			c.Request.Context(), db, "town-1", "player-1",
+			c.Param("id"), body.RequestID, body.Message,
+		)
+		if err != nil {
+			switch {
+			case errors.Is(err, negotiation.ErrDiscussionInput):
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "发言为空、过长、重复编号冲突，或本次发言额度已用完。",
+				})
+			case errors.Is(err, negotiation.ErrDiscussionState):
+				c.JSON(http.StatusConflict, gin.H{
+					"error": "会面已结束、状态发生变化，或你不在会面附近。",
+				})
+			case errors.Is(err, sql.ErrNoRows):
+				c.JSON(http.StatusNotFound, gin.H{"error": "没有找到这次会面。"})
+			default:
+				log.Printf("discussion message: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "保存发言失败。"})
+			}
+			return
+		}
+
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, gin.H{"queued": true})
+	}
+}
+
+func CancelNegotiationHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := negotiation.CancelDiscussion(
+			c.Request.Context(), db, "town-1", "player-1", c.Param("id"),
+		)
+		if err != nil {
+			if errors.Is(err, negotiation.ErrDiscussionState) {
+				c.JSON(http.StatusConflict, gin.H{
+					"error": "协议已经成立，结束会面不能撤销协议。",
+				})
+				return
+			}
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "没有找到这次会面。"})
+				return
+			}
+			log.Printf("cancel negotiation: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "结束会面失败。"})
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, gin.H{"cancelled": true})
+	}
+}

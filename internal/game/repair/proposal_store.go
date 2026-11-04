@@ -2,13 +2,13 @@ package repair
 
 import (
 	"context"
-	"database/sql"
+	"cybertown/internal/game/storage"
 	"fmt"
 )
 
 func GetRepairProposal(
 	ctx context.Context,
-	db *sql.DB,
+	db storage.DBTX,
 	worldID string,
 	proposalID string,
 ) (RepairProposal, error) {

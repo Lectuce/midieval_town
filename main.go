@@ -42,6 +42,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := gamenegotiation.InitDiscussion(ctx, db); err != nil {
+		log.Fatalf("initialize discussion: %v", err)
+	}
+
 	gameService := game.NewService(db)
 
 	err = worldstate.InitWorld(ctx, db, config)
@@ -209,15 +213,17 @@ func main() {
 		},
 		engine.Config{
 			Model:       agentconfig.PRIMARY_MODEL,
-			MaxTokens:   512,
+			MaxTokens:   1024,
 			MaxRounds:   1,
 			TurnTimeout: 30 * time.Second,
 		},
 		map[string][]anthropic.ToolUnionParam{
 			"negotiation_invitation": {},
+			"negotiation_discussion": {},
 		},
 		map[string]map[string]engine.ToolHandler{
 			"negotiation_invitation": {},
+			"negotiation_discussion": {},
 		},
 	)
 	if err != nil {
@@ -233,6 +239,9 @@ func main() {
 	err = repair.RecoverRepairCoordination(recoverCtx, db)
 	if err == nil {
 		err = gamenegotiation.RecoverNegotiationInvitations(recoverCtx, db)
+	}
+	if err == nil {
+		err = gamenegotiation.RecoverDiscussions(recoverCtx, db)
 	}
 	cancelRecovery()
 	if err != nil {
@@ -257,6 +266,7 @@ func main() {
 		Agent: &npc.Agent{
 			Engine: invitationEngine,
 		},
+		Director:     directorService,
 		MeetingRoute: meetingRoute,
 	}
 

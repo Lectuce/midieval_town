@@ -95,34 +95,10 @@ type RepairTerms struct {
 	DurationMinutes int64 `json:"duration_minutes"`
 }
 
-type DiscussionDecision struct {
-	Action           string       `json:"action"`
-	ProposalID       string       `json:"proposal_id"`
-	ExpectedRevision int64        `json:"expected_revision"`
-	Speech           string       `json:"speech"`
-	Topic            string       `json:"topic,omitempty"`
-	Issue            string       `json:"issue,omitempty"`
-	Terms            *RepairTerms `json:"terms,omitempty"`
-}
-
 type DiscussionPlan struct {
 	Action        string `json:"action"`
 	ActorID       string `json:"actor_id"`
 	Topic         string `json:"topic"`
 	SourceEventID string `json:"source_event_id"`
 	Reason        string `json:"reason"`
-}
-
-type DiscussionWork struct {
-	WorldID             string
-	NegotiationID       string
-	EventID             string
-	SourceEventID       string
-	ActorID             string
-	Kind                string
-	Topic               string
-	ProposalID          string
-	ProposalRevision    int64
-	NegotiationRevision int64
-	Attempt             int
 }
