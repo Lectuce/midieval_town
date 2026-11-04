@@ -516,14 +516,6 @@ ON npc_move_jobs(world_id, npc_id)
 WHERE status = 'running';
 
 
-ALTER TABLE negotiation_events
-ADD COLUMN payload_json TEXT NOT NULL DEFAULT '{}';
-
-ALTER TABLE negotiations
-ADD COLUMN model_calls INTEGER NOT NULL DEFAULT 0;
-
-ALTER TABLE negotiations
-ADD COLUMN end_reason TEXT NOT NULL DEFAULT '';
 
 
 CREATE TABLE IF NOT EXISTS negotiation_event_receipts (
