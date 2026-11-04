@@ -97,3 +97,33 @@ func CreateNegotiationHandler(db *sql.DB) gin.HandlerFunc {
 		})
 	}
 }
+
+func GetNegotiationHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		view, err := negotiation.GetMeetingView(
+			c.Request.Context(),
+			db,
+			"town-1",
+			"player-1",
+			c.Param("id"),
+		)
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "没有找到这次会面。",
+			})
+			return
+		}
+		if err != nil {
+			log.Printf("get negotiation: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "暂时无法查询会面状态。",
+			})
+			return
+		}
+
+		c.Header("Cache-Control", "no-store")
+		c.JSON(http.StatusOK, gin.H{
+			"negotiation": view,
+		})
+	}
+}

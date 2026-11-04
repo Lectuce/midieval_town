@@ -15,6 +15,7 @@ var _details: Label
 var _notice: Label
 var _deliver_button: Button
 var _refresh_button: Button
+var _meeting_controls
 
 
 func _ready() -> void:
@@ -51,6 +52,10 @@ func _ready() -> void:
 	_deliver_button.text = "转交马丁"
 	_deliver_button.pressed.connect(_deliver)
 	bottom.add_child(_deliver_button)
+	_meeting_controls = preload(
+	"res://scripts/negotiation_invite.gd"
+	).new()
+	add_child(_meeting_controls)
 
 	hide()
 
@@ -128,6 +133,12 @@ func _render() -> void:
 	_selector.disabled = busy or _chat_waiting or _cards.is_empty()
 
 	var card := _selected_card()
+	if is_instance_valid(_meeting_controls):
+		_meeting_controls.configure(
+			_base_url,
+			card,
+			_opened and not busy and not _chat_waiting
+		)
 	_deliver_button.disabled = true
 	_deliver_button.text = "转交马丁"
 

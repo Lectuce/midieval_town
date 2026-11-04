@@ -15,11 +15,18 @@ import (
 )
 
 type Service struct {
-	DB    *sql.DB
-	Agent *npc.Agent
+	DB           *sql.DB
+	Agent        *npc.Agent
+	MeetingRoute gamenegotiation.NegotiationMeetingRoute
 }
 
 func (s *Service) Run(ctx context.Context) {
+	// 启动时也检查，处理上次已经接受但尚未出发的会话。
+	if err := s.startReadyMeetings(ctx); err != nil {
+		log.Printf("meeting recovery stopped: %v", err)
+		return
+	}
+
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
@@ -29,17 +36,19 @@ func (s *Service) Run(ctx context.Context) {
 			return
 
 		case <-ticker.C:
-			if err := s.processOne(ctx); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					continue
+			err := s.processOne(ctx)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				if ctx.Err() == nil {
+					log.Printf("negotiation worker stopped: %v", err)
 				}
-				if ctx.Err() != nil {
-					return
-				}
+				return
+			}
 
-				// 数据库领取/落地失败时停止此 worker。
-				// 避免留下 processing 后仍不断处理其他事件。
-				log.Printf("negotiation worker stopped: %v", err)
+			// 即使没有新邀请，也检查是否可以出发。
+			if err := s.startReadyMeetings(ctx); err != nil {
+				if ctx.Err() == nil {
+					log.Printf("meeting worker stopped: %v", err)
+				}
 				return
 			}
 		}
@@ -134,6 +143,51 @@ func (s *Service) processOne(ctx context.Context) error {
 		job.EventID,
 		job.NPCID,
 	)
+
+	return nil
+}
+
+func (s *Service) startReadyMeetings(ctx context.Context) error {
+	meetings, err := gamenegotiation.ListReadyMeetings(ctx, s.DB)
+	if err != nil {
+		return err
+	}
+
+	for _, meeting := range meetings {
+		err := gamenegotiation.StartNegotiationMeeting(
+			ctx,
+			s.DB,
+			meeting.WorldID,
+			meeting.ID,
+			s.MeetingRoute,
+		)
+		if err == nil {
+			log.Printf(
+				"meeting started negotiation=%s",
+				meeting.ID,
+			)
+			continue
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		// 具体原因保留在服务端日志中。
+		log.Printf(
+			"meeting start failed negotiation=%s error=%v",
+			meeting.ID,
+			err,
+		)
+
+		if err := gamenegotiation.BlockUnstartedMeeting(
+			ctx,
+			s.DB,
+			meeting,
+		); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

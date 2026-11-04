@@ -148,25 +148,12 @@ func main() {
 	)
 
 	if negotiationID := os.Getenv("START_MEETING_ID"); negotiationID != "" {
-		route, err := gamenegotiation.LoadNegotiationMeetingRoute(
+		meetingRoute, err := gamenegotiation.LoadNegotiationMeetingRoute(
 			"config/town/negotiation_meeting.json",
 		)
 		if err != nil {
 			log.Fatalf("load meeting route: %v", err)
 		}
-
-		err = gamenegotiation.StartNegotiationMeeting(
-			ctx,
-			db,
-			config.World.ID,
-			negotiationID,
-			route,
-		)
-		if err != nil {
-			log.Fatalf("start negotiation meeting: %v", err)
-		}
-
-		log.Printf("meeting prepared negotiation=%s", negotiationID)
 	}
 
 	npcEngine, err := engine.New(
@@ -273,6 +260,7 @@ func main() {
 		Agent: &npc.Agent{
 			Engine: invitationEngine,
 		},
+		MeetingRoute: meetingRoute,
 	}
 
 	negotiationDone := make(chan struct{})
