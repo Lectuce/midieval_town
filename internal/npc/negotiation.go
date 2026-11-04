@@ -10,11 +10,12 @@ import (
 
 	"cybertown/internal/agent/engine"
 	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
 )
 
 func (a *Agent) RespondToNegotiation(
 	ctx context.Context,
-	character game.NPC,
+	character actor.NPC,
 	invitation game.NegotiationInvitation,
 ) (game.InvitationDecision, error) {
 	if a == nil || a.Engine == nil {

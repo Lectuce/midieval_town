@@ -11,7 +11,8 @@ import (
 	"log"
 
 	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
+	"cybertown/internal/game/inventory"
+	"cybertown/internal/game/repair"
 )
 
 func getMyRepairResources(
@@ -31,7 +32,7 @@ func getMyRepairResources(
 		)
 	}
 
-	items, err := game.GetNPCInventory(
+	items, err := inventory.GetNPCInventory(
 		ctx,
 		db,
 		scope.WorldID,
@@ -124,7 +125,7 @@ func proposeCartRepair(
 	sum := sha256.Sum256([]byte(key))
 	proposalID := fmt.Sprintf("repair-offer-%x", sum[:16])
 
-	proposal, err := game.GetRepairProposal(
+	proposal, err := repair.GetRepairProposal(
 		ctx,
 		db,
 		scope.WorldID,
@@ -143,11 +144,11 @@ func proposeCartRepair(
 		}
 
 	case errors.Is(err, sql.ErrNoRows):
-		proposal, err = game.CreateRepairProposal(
+		proposal, err = repair.CreateRepairProposal(
 			ctx,
 			db,
 			scope.WorldID,
-			game.CreateRepairProposalRequest{
+			repair.CreateRepairProposalRequest{
 				ID:              proposalID,
 				PriceCoins:      *args.PriceCoins,
 				MaterialCount:   *args.MaterialCount,
@@ -173,7 +174,7 @@ func proposeCartRepair(
 	if !proposal.WorkerConfirmed {
 		// 确认前检查本人当前是否有足够材料。
 		// 这不是预留材料，开工时仍需重新检查。
-		items, err := game.GetNPCInventory(
+		items, err := inventory.GetNPCInventory(
 			ctx,
 			db,
 			scope.WorldID,
@@ -199,7 +200,7 @@ func proposeCartRepair(
 			)
 		}
 
-		proposal, err = game.ConfirmRepairProposal(
+		proposal, err = repair.ConfirmRepairProposal(
 			ctx,
 			db,
 			scope.WorldID,

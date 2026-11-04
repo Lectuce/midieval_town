@@ -3,7 +3,7 @@ package npc
 import (
 	"context"
 	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
 	"fmt"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -15,9 +15,9 @@ type Agent struct {
 
 func (a *Agent) Reply(
 	ctx context.Context,
-	character game.NPC,
-	player game.Player,
-	facts []game.KnownFact,
+	character actor.NPC,
+	player actor.Player,
+	facts []actor.KnownFact,
 	history []anthropic.MessageParam,
 	req ChatRequest,
 	onText func(string) error,

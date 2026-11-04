@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cybertown/internal/game"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/repair"
 	"database/sql"
 	"errors"
 	"log"
@@ -12,7 +13,7 @@ import (
 
 func DeliverRepairProposalHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		proposal, err := game.DeliverRepairProposal(
+		proposal, err := repair.DeliverRepairProposal(
 			c.Request.Context(),
 			db,
 			"town-1",
@@ -23,7 +24,7 @@ func DeliverRepairProposalHandler(db *sql.DB) gin.HandlerFunc {
 		if err != nil {
 			if errors.Is(
 				err,
-				game.ErrRepairProposalDeliveryDenied,
+				constError.ErrRepairProposalDeliveryDenied,
 			) {
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "这份报价无法转交给该角色。",
@@ -55,7 +56,7 @@ func DeliverRepairProposalHandler(db *sql.DB) gin.HandlerFunc {
 
 func PlayerRepairProposalsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		cards, err := game.GetPlayerRepairProposals(
+		cards, err := repair.GetPlayerRepairProposals(
 			c.Request.Context(),
 			db,
 			"town-1",

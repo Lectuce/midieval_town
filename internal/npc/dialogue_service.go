@@ -3,6 +3,8 @@ package npc
 import (
 	"context"
 	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
+	"cybertown/internal/game/repair"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -32,10 +34,10 @@ type ChatRequest struct {
 }
 
 type ChatResponse struct {
-	NPCID           string                    `json:"npc_id"`
-	RequestID       string                    `json:"request_id"`
-	Reply           string                    `json:"reply"`
-	RepairProposals []game.RepairProposalCard `json:"repair_proposals"`
+	NPCID           string                      `json:"npc_id"`
+	RequestID       string                      `json:"request_id"`
+	Reply           string                      `json:"reply"`
+	RepairProposals []repair.RepairProposalCard `json:"repair_proposals"`
 }
 
 // 哪一组对话
@@ -112,14 +114,14 @@ func (s *DialogueService) Chat(
 		return ChatResponse{}, ErrInvalidMessage
 	}
 
-	player, err := game.GetPlayer(
+	player, err := actor.GetPlayer(
 		ctx, s.db, req.WorldID, req.PlayerID,
 	)
 	if err != nil {
 		return ChatResponse{}, fmt.Errorf("load player: %w", err)
 	}
 
-	character, err := game.GetNPC(
+	character, err := actor.GetNPC(
 		ctx, s.db, req.WorldID, req.NPCID,
 	)
 	if err != nil {
@@ -170,7 +172,7 @@ func (s *DialogueService) Chat(
 			return ChatResponse{}, ErrRequestConflict
 		}
 
-		response.RepairProposals, err = game.GetPlayerRepairProposals(
+		response.RepairProposals, err = repair.GetPlayerRepairProposals(
 			ctx, s.db, req.WorldID, req.PlayerID,
 		)
 		if err != nil {
@@ -239,7 +241,7 @@ func (s *DialogueService) Chat(
 		history = append(history, turns[i]...)
 	}
 
-	facts, err := game.GetKnownFacts(ctx, s.db, character.WorldID, character.ID)
+	facts, err := actor.GetKnownFacts(ctx, s.db, character.WorldID, character.ID)
 	if err != nil {
 		return ChatResponse{}, fmt.Errorf(
 			"load NPC knowledge: %v", err,
@@ -302,7 +304,7 @@ func (s *DialogueService) Chat(
 	}
 
 	// 保存对话成功后，读取玩家已经取得的报价。
-	response.RepairProposals, err = game.GetPlayerRepairProposals(
+	response.RepairProposals, err = repair.GetPlayerRepairProposals(
 		ctx,
 		s.db,
 		req.WorldID,

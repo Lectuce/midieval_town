@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"context"
 	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
+	"cybertown/internal/game/inventory"
+	"cybertown/internal/game/repair"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -21,14 +22,14 @@ func getReceivedRepairProposals(
 		return "", fmt.Errorf("only the merchant can use this tool")
 	}
 
-	proposals, err := game.GetReceivedRepairProposals(
+	proposals, err := repair.GetReceivedRepairProposals(
 		ctx, db, scope.WorldID, scope.AgentID,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	items, err := game.GetNPCInventory(
+	items, err := inventory.GetNPCInventory(
 		ctx, db, scope.WorldID, scope.AgentID,
 	)
 	if err != nil {
@@ -46,9 +47,9 @@ func getReceivedRepairProposals(
 	// 同一次查询返回本人资金，减少额外模型轮次。
 	// 不提供铁匠或玩家的库存。
 	raw, err := json.Marshal(struct {
-		Source    string                `json:"source"`
-		OwnCoins  int64                 `json:"own_coins"`
-		Proposals []game.RepairProposal `json:"proposals"`
+		Source    string                  `json:"source"`
+		OwnCoins  int64                   `json:"own_coins"`
+		Proposals []repair.RepairProposal `json:"proposals"`
 	}{
 		Source:    "玩家明确转交的报价",
 		OwnCoins:  coins,
@@ -91,7 +92,7 @@ func acceptRepairProposal(
 		return "", fmt.Errorf("proposal id and revision are required")
 	}
 
-	proposal, err := game.ConfirmRepairProposal(
+	proposal, err := repair.ConfirmRepairProposal(
 		ctx,
 		db,
 		scope.WorldID,
@@ -151,7 +152,7 @@ func respondToRepairProposal(
 		return "", err
 	}
 
-	event, err := game.RecordRepairResponse(
+	event, err := repair.RecordRepairResponse(
 		ctx,
 		db,
 		scope.WorldID,

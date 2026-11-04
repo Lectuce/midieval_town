@@ -3,7 +3,8 @@ package npc
 import (
 	"context"
 	"cybertown/internal/agent/engine"
-	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
+	"cybertown/internal/game/quest"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -86,7 +87,7 @@ func getMyQuestStatus(
 		return "", fmt.Errorf("this tool requires an NPC scope")
 	}
 
-	status, err := game.GetNPCQuestStatus(
+	status, err := quest.GetNPCQuestStatus(
 		ctx,
 		db,
 		scope.WorldID,
@@ -115,7 +116,7 @@ func getKnownFacts(
 		return "", fmt.Errorf("this tool requires an NPC scope")
 	}
 
-	status, err := game.GetKnownFacts(
+	status, err := actor.GetKnownFacts(
 		ctx,
 		db,
 		scope.WorldID,

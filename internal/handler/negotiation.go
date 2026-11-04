@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"cybertown/internal/game"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/negotiation"
 	"database/sql"
 	"errors"
 	"log"
@@ -33,12 +34,12 @@ func CreateNegotiationHandler(db *sql.DB) gin.HandlerFunc {
 
 		// 延续当前单玩家接口的身份设置。
 		// 不允许客户端指定其他玩家或报价参与者。
-		negotiation, err := game.CreateNegotiation(
+		negotiation, err := negotiation.CreateNegotiation(
 			c.Request.Context(),
 			db,
 			"town-1",
 			"player-1",
-			game.CreateNegotiationRequest{
+			negotiation.CreateNegotiationRequest{
 				RequestID:        body.RequestID,
 				ProposalID:       body.ProposalID,
 				ExpectedRevision: body.ExpectedRevision,
@@ -46,27 +47,27 @@ func CreateNegotiationHandler(db *sql.DB) gin.HandlerFunc {
 		)
 		if err != nil {
 			switch {
-			case errors.Is(err, game.ErrNegotiationInvalidRequest):
+			case errors.Is(err, constError.ErrNegotiationInvalidRequest):
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error": "邀请参数不正确。",
 				})
 
-			case errors.Is(err, game.ErrNegotiationRequestConflict):
+			case errors.Is(err, constError.ErrNegotiationRequestConflict):
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "该请求编号已经用于另一份报价或版本。",
 				})
 
-			case errors.Is(err, game.ErrRepairProposalRevisionConflict):
+			case errors.Is(err, constError.ErrRepairProposalRevisionConflict):
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "报价已经变化，请刷新报价后再邀请。",
 				})
 
-			case errors.Is(err, game.ErrNegotiationUnavailable):
+			case errors.Is(err, constError.ErrNegotiationUnavailable):
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "当前报价或货车状态不允许发起协商。",
 				})
 
-			case errors.Is(err, game.ErrNegotiationBusy):
+			case errors.Is(err, constError.ErrNegotiationBusy):
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "货车或参与者已有协商、工作或已确认的维修安排。",
 				})

@@ -3,6 +3,7 @@ package repair
 import (
 	"context"
 	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/inventory"
 	"cybertown/internal/game/transport"
 	"database/sql"
 	"fmt"
@@ -269,18 +270,12 @@ func StartCartRepair(
 	}
 
 	// 7. 消耗维修者提供的材料。
-	result, err = tx.ExecContext(ctx, `
-		UPDATE npc_inventory
-		SET quantity = quantity - ?,
-			revision = revision + 1
-		WHERE world_id = ?
-			AND npc_id = ?
-			AND item_id = 'repair_material'
-			AND quantity >= ?
-	`,
-		proposal.MaterialCount,
+	err = inventory.ConsumeNPCItemTx(
+		ctx,
+		tx,
 		worldID,
 		proposal.WorkerNPCID,
+		"repair_material",
 		proposal.MaterialCount,
 	)
 	if err != nil {
@@ -289,85 +284,20 @@ func StartCartRepair(
 		)
 	}
 
-	affected, err = result.RowsAffected()
-	if err != nil {
-		return RepairJob{}, fmt.Errorf(
-			"read material deduction result: %w", err,
-		)
-	}
-	if affected != 1 {
-		return RepairJob{}, fmt.Errorf(
-			"repair worker has insufficient materials",
-		)
-	}
-
 	// 8. 约定费用大于零时，完成付款和收款。
 	if proposal.PriceCoins > 0 {
-		result, err = tx.ExecContext(ctx, `
-			UPDATE npc_inventory
-			SET quantity = quantity - ?,
-				revision = revision + 1
-			WHERE world_id = ?
-				AND npc_id = ?
-				AND item_id = 'coin'
-				AND quantity >= ?
-		`,
-			proposal.PriceCoins,
+		err = inventory.TransferNPCItemTx(
+			ctx,
+			tx,
 			worldID,
 			proposal.PayerNPCID,
-			proposal.PriceCoins,
-		)
-		if err != nil {
-			return RepairJob{}, fmt.Errorf(
-				"deduct repair payment: %w", err,
-			)
-		}
-
-		affected, err = result.RowsAffected()
-		if err != nil {
-			return RepairJob{}, fmt.Errorf(
-				"read repair payment result: %w", err,
-			)
-		}
-		if affected != 1 {
-			return RepairJob{}, fmt.Errorf(
-				"repair payer has insufficient coins",
-			)
-		}
-
-		// 当前初始化已经为维修者创建 coin 库存行。
-		// 同时避免余额相加超出 int64 范围。
-		const maxQuantity int64 = 1<<63 - 1
-
-		result, err = tx.ExecContext(ctx, `
-			UPDATE npc_inventory
-			SET quantity = quantity + ?,
-				revision = revision + 1
-			WHERE world_id = ?
-				AND npc_id = ?
-				AND item_id = 'coin'
-				AND quantity <= ?
-		`,
-			proposal.PriceCoins,
-			worldID,
 			proposal.WorkerNPCID,
-			maxQuantity-proposal.PriceCoins,
+			"coin",
+			proposal.PriceCoins,
 		)
 		if err != nil {
 			return RepairJob{}, fmt.Errorf(
-				"credit repair payment: %w", err,
-			)
-		}
-
-		affected, err = result.RowsAffected()
-		if err != nil {
-			return RepairJob{}, fmt.Errorf(
-				"read repair credit result: %w", err,
-			)
-		}
-		if affected != 1 {
-			return RepairJob{}, fmt.Errorf(
-				"worker coin inventory is missing or would overflow",
+				"transfer repair payment: %w", err,
 			)
 		}
 	}

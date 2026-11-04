@@ -243,16 +243,6 @@ func CompleteQuest(
 		)
 	}
 
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return QuestCompletionResult{}, fmt.Errorf(
-			"read consumed item result: %w", err,
-		)
-	}
-	if affected != 1 {
-		return QuestCompletionResult{}, constError.ErrQuestItemsRequired
-	}
-
 	// 只有仍处于 active 且版本一致的任务才能完成。
 	result, err := tx.ExecContext(ctx, `
 		UPDATE player_quests
@@ -275,7 +265,7 @@ func CompleteQuest(
 		)
 	}
 
-	affected, err = result.RowsAffected()
+	affected, err := result.RowsAffected()
 	if err != nil {
 		return QuestCompletionResult{}, fmt.Errorf(
 			"read quest update result: %w", err,

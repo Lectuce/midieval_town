@@ -63,7 +63,7 @@ func PositionOnRoute(
 
 // 在 AdvanceWorldTime 已开启的事务内调用。
 // 此方法不 BeginTx、不 Commit，也不申请另一条数据库连接。
-func advanceNegotiationMovementTx(
+func AdvanceMovementTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	worldID string,

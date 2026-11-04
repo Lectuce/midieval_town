@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
-	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/model"
 	"database/sql"
 	"errors"
 	"log"
@@ -16,16 +18,16 @@ type PlayerGame interface {
 		context.Context,
 		string,
 		string,
-	) (game.Player, error)
+	) (actor.Player, error)
 
 	SavePlayerPosition(
 		context.Context,
 		string,
 		string,
-		game.Position,
+		model.Position,
 		int,
 		int64,
-	) (game.Player, error)
+	) (actor.Player, error)
 }
 
 func PlayerHandler(g PlayerGame) gin.HandlerFunc {
@@ -82,7 +84,7 @@ func PlayerPosition(g PlayerGame) gin.HandlerFunc {
 			c.Request.Context(),
 			"town-1",
 			"player-1",
-			game.Position{
+			model.Position{
 				X: *body.Position.X,
 				Y: *body.Position.Y,
 			},
@@ -92,12 +94,12 @@ func PlayerPosition(g PlayerGame) gin.HandlerFunc {
 
 		if err != nil {
 			switch {
-			case errors.Is(err, game.ErrPlayerInactive):
+			case errors.Is(err, constError.ErrPlayerInactive):
 				c.JSON(http.StatusForbidden, gin.H{
 					"error": "player is not active",
 				})
 
-			case errors.Is(err, game.ErrPlayerRevisionConflict):
+			case errors.Is(err, constError.ErrPlayerRevisionConflict):
 				c.JSON(http.StatusConflict, gin.H{
 					"error": "player revision conflict; reload player",
 				})

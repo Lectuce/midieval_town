@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/negotiation"
 	"cybertown/internal/game/repair"
 	"cybertown/internal/game/transport"
 	worldstate "cybertown/internal/game/world"
@@ -442,7 +443,7 @@ func AdvanceWorldTime(
 
 	// 使用本次推进后的游戏时间，更新 NPC 会面移动。
 	// 与世界时间、维修和运输一起提交。
-	err = advanceNegotiationMovementTx(
+	err = negotiation.AdvanceMovementTx(
 		ctx,
 		tx,
 		worldID,

@@ -1,11 +1,11 @@
 package npc
 
 import (
-	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
 	"fmt"
 )
 
-func BuildSystemPrompt(character game.NPC, player game.Player, facts []game.KnownFact) string {
+func BuildSystemPrompt(character actor.NPC, player actor.Player, facts []actor.KnownFact) string {
 	systemPrompt := fmt.Sprintf(`你是中世纪小镇中的一名 NPC，请始终以这个角色的身份与玩家对话。
 		角色资料：
 		姓名：%s

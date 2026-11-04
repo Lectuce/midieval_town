@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"cybertown/internal/game"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/world"
 )
 
 // 一个世界只启动一个游戏时钟。
@@ -38,7 +40,7 @@ func (s *Service) RunMovement(
 				5*time.Second,
 			)
 
-			world, err := game.GetWorld(
+			world, err := world.GetWorld(
 				tickCtx, s.DB, worldID,
 			)
 
@@ -59,7 +61,7 @@ func (s *Service) RunMovement(
 					return
 				}
 
-				if errors.Is(err, game.ErrWorldRevisionConflict) {
+				if errors.Is(err, constError.ErrWorldRevisionConflict) {
 					// 本次未提交，下一次重新读取版本。
 					continue
 				}

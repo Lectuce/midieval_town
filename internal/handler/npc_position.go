@@ -1,18 +1,17 @@
 package handler
 
 import (
+	"cybertown/internal/game/actor"
 	"database/sql"
 	"log"
 	"net/http"
-
-	"cybertown/internal/game"
 
 	"github.com/gin-gonic/gin"
 )
 
 func NPCPositionsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		positions, err := game.GetNPCPositions(
+		positions, err := actor.GetNPCPositions(
 			c.Request.Context(),
 			db,
 			"town-1",

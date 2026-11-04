@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"cybertown/internal/game"
+	"cybertown/internal/game/actor"
+	constError "cybertown/internal/game/const_error"
+	"cybertown/internal/game/negotiation"
+	"cybertown/internal/game/repair"
 	"cybertown/internal/npc"
 )
 
@@ -44,14 +48,14 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) processOne(ctx context.Context) error {
-	job, err := game.ClaimNegotiationInvitation(ctx, s.DB)
+	job, err := negotiation.ClaimNegotiationInvitation(ctx, s.DB)
 	if err != nil {
 		return err
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 
-	character, workErr := game.GetNPC(
+	character, workErr := actor.GetNPC(
 		callCtx,
 		s.DB,
 		job.Negotiation.WorldID,
@@ -64,7 +68,7 @@ func (s *Service) processOne(ctx context.Context) error {
 		job.NPCRevision = character.Revision
 
 		// 调用前先排除已经变化的报价，避免无效模型调用。
-		proposal, err := game.GetRepairProposal(
+		proposal, err := repair.GetRepairProposal(
 			callCtx,
 			s.DB,
 			job.Negotiation.WorldID,
@@ -74,10 +78,10 @@ func (s *Service) processOne(ctx context.Context) error {
 
 		if workErr == nil &&
 			(proposal.Revision != job.Negotiation.CurrentProposalRevision ||
-				proposal.Status != game.RepairProposalStatusProposed ||
+				proposal.Status != repair.RepairProposalStatusProposed ||
 				proposal.PayerConfirmed ||
 				!proposal.WorkerConfirmed) {
-			workErr = game.ErrNegotiationUnavailable
+			workErr = constError.ErrNegotiationUnavailable
 		}
 	}
 
@@ -113,12 +117,13 @@ func (s *Service) processOne(ctx context.Context) error {
 	)
 	defer cancelSave()
 
-	if err := game.FinishNegotiationInvitation(
+	err = negotiation.FinishNegotiationInvitation(
 		saveCtx,
 		s.DB,
 		job,
 		decision,
-	); err != nil {
+	)
+	if err != nil {
 		return err
 	}
 
