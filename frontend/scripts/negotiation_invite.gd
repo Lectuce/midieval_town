@@ -445,3 +445,21 @@ func _on_response(
 func _exit_tree() -> void:
 	if is_instance_valid(_http):
 		_http.cancel_request()
+
+
+func _open_meeting_view() -> void:
+	if _base_url.is_empty():
+		return
+
+	if not is_instance_valid(_meeting_view):
+		return
+
+	_meeting_view.open_view(
+		_base_url,
+		str(_session.get("id", ""))
+	)
+
+
+func close_view() -> void:
+	if is_instance_valid(_meeting_view):
+		_meeting_view.close_view()
