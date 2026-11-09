@@ -30,11 +30,21 @@ var _notice: Label
 var _http: HTTPRequest
 var _timer: Timer
 
+var _view_button: Button
+var _meeting_view
 
 func _ready() -> void:
 	_button = Button.new()
 	_button.pressed.connect(_invite)
 	add_child(_button)
+	_view_button = Button.new()
+	_view_button.text = "查看协商对话"
+	_view_button.pressed.connect(_open_meeting_view)
+	add_child(_view_button)
+
+	_meeting_view = preload("res://scripts/meeting_view.gd").new()
+	add_child(_meeting_view)
+	_meeting_view.snapshot_received.connect(_accept_session)
 
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -126,11 +136,18 @@ func _render() -> void:
 	if not is_instance_valid(_button):
 		return
 
-	_button.text = "查看会面状态" if _active() else "邀请双方当面商量"
+	_button.text = "会面已经发起" if _active() else "邀请双方当面商量"
 	_button.disabled = (
-		_busy or not _allowed or not _loaded
-		or (not _active() and not _eligible())
+		_busy
+		or not _allowed
+		or not _loaded
+		or _active()
+		or not _eligible()
 	)
+
+	# 查看记录不需要报价仍可协商。
+	# 已达成协议、失败或取消后，仍然能够查看过程。
+	_view_button.disabled = _base_url.is_empty()
 
 	var state := str(_session.get("status", ""))
 	var descriptions := {
@@ -229,6 +246,13 @@ func _invite() -> void:
 
 
 func _poll() -> void:
+
+	if is_instance_valid(_meeting_view) and _meeting_view.visible:
+		return	
+
+
+
+
 	if _busy or not is_visible_in_tree() or _base_url.is_empty():
 		return
 

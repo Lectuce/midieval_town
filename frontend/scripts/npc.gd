@@ -35,15 +35,24 @@ func reply_to(message: String) -> String:
 
 var _server_revision: int = -1
 var _server_target := Vector2.ZERO
+
+var _blend_start := Vector2.ZERO
+var _blend_elapsed := 0.0
+var _blend_duration := 0.25
+
 var _position_pending := false
+var _snap_pending := false
+var _last_position_time_ms: int = 0
 
 
 func apply_server_position(
 	snapshot: Dictionary,
 	world_root: Node2D
 ) -> void:
-	# 这一版只同步地面上的会面参与者。
 	if npc_id not in ["merchant", "blacksmith"]:
+		return
+
+	if not is_instance_valid(world_root):
 		return
 
 	if str(snapshot.get("id", "")) != npc_id:
@@ -75,21 +84,66 @@ func apply_server_position(
 		float(x_value),
 		float(y_value)
 	)
-
 	if not is_finite(town_position.x) or not is_finite(town_position.y):
 		return
 
+	var target := world_root.to_global(town_position)
+	var now_ms := Time.get_ticks_msec()
+	var first_position := _server_revision < 0
+
 	_server_revision = revision
 
-	# 后端保存的是相对 Game 的坐标。
-	# 转成全局坐标后再应用，避免 Game 自身偏移造成错位。
-	_server_target = world_root.to_global(town_position)
+	# 第一次进入游戏：直接显示存档位置，不播放过去的移动。
+	if first_position:
+		_server_target = target
+		_last_position_time_ms = now_ms
+		_snap_pending = true
+		_position_pending = false
+		return
+
+	# 活动变化也可能增加版本；坐标没变，不要重新开始补间。
+	if target.is_equal_approx(_server_target):
+		return
+
+	var sample_interval := float(
+		now_ms - _last_position_time_ms
+	) / 1000.0
+	_last_position_time_ms = now_ms
+
+	_server_target = target
+
+	# 长时间断线后的明显位置差异直接校正，
+	# 避免角色从旧位置缓慢穿过半张地图。
+	if _snap_pending or global_position.distance_to(target) > 96.0:
+		_snap_pending = true
+		_position_pending = false
+		return
+
+	_blend_start = global_position
+	_blend_elapsed = 0.0
+	_blend_duration = clampf(sample_interval, 0.10, 0.50)
 	_position_pending = true
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if _snap_pending:
+		global_position = _server_target
+		_snap_pending = false
+		return
+
 	if not _position_pending:
 		return
 
-	global_position = _server_target
-	_position_pending = false
+	_blend_elapsed += delta
+
+	var weight := clampf(
+		_blend_elapsed / _blend_duration,
+		0.0,
+		1.0
+	)
+
+	global_position = _blend_start.lerp(_server_target, weight)
+
+	if weight >= 1.0:
+		global_position = _server_target
+		_position_pending = false

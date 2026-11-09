@@ -79,6 +79,10 @@ func open_for(npc_id: String, base_url: String) -> void:
 func close_panel() -> void:
 	_opened = false
 	_cancel_request()
+
+	if is_instance_valid(_meeting_controls):
+		_meeting_controls.close_view()
+
 	hide()
 
 
