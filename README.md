@@ -1,4 +1,6 @@
 
+# Cyber Town
+
 > Agent-Driven Narrative RPG
 
 一款正在开发中的 AI 单人叙事 RPG。玩家来到一座依赖铁矿贸易的中世纪小镇，通过自由语言与商人、铁匠、守卫和酒馆老板交涉，调查一辆离奇失踪的铁矿货车。
@@ -23,7 +25,9 @@
 2. 玩家在小镇中移动，与不同 NPC 交谈，拼接各自掌握的信息。
 3. 玩家前往货车现场进行调查，游戏服务根据任务状态、坐标和楼层校验行为。
 4. 找到的证据被写入存档，并在后续对话和任务流程中成为可验证事实。
-5. 后续版本将加入证据出示、物品交换、任务提交与导演 Agent 驱动的分支机会。
+5. 领取货物凭证，通过交付按钮完成调查任务并获得一次性奖励。
+6. 向罗兰取得维修报价，转交马丁，或邀请双方会面并旁听自主协商。
+7. 后续重点是补齐 NPC 自身需求、合法维修方式和导演的具体澄清，让协商影响真实维修结果。
 
 ## 架构设计
 
@@ -38,7 +42,7 @@ flowchart LR
     Tools --> Game
     Dialogue --> DB[(SQLite)]
     Game --> DB
-    DB -. 重要游戏事件 .-> Director[导演 Agent · 规划中]
+    DB -. 协商分歧事件 .-> Director[导演 Agent · 已有基础编排]
     Director -. 合法计划 .-> Game
 ```
 
@@ -47,7 +51,7 @@ flowchart LR
 | 模块 | 职责 | 是否拥有最终决定权 |
 | --- | --- | --- |
 | NPC Agent | 理解玩家表达、生成符合人设的回应、申请角色行动 | 否 |
-| 导演 Agent | 在重要事件后组合合法的剧情机会 | 否 |
+| 导演 Agent | 根据公开分歧组织澄清、请求反报价或停止，不替角色同意 | 否 |
 | Agent Engine | 执行模型—工具循环，控制轮数、超时和工具权限 | 否 |
 | GameService | 校验位置、任务、证据、物品和状态版本 | 是 |
 | SQLite | 保存可恢复的权威游戏状态与对话记录 | 是 |
@@ -55,6 +59,9 @@ flowchart LR
 这条边界解决了生成式游戏最关键的问题：NPC 可以灵活回应，但不能因为一句台词就凭空创造证据、完成任务或发放奖励。
 
 ## 当前进度
+
+更新日期：2026-11-10。以下“已有实现”指本地源码中已有对应入口和逻辑，
+不代表本次已执行完整测试或确认 Linux 正在运行相同版本。
 
 | 能力 | 状态 |
 | --- | --- |
@@ -65,13 +72,22 @@ flowchart LR
 | 普通 HTTP 对话与 SSE 流式输出 | ✅ 已完成 |
 | 请求幂等、会话串行化与基础限流 | ✅ 已完成 |
 | 货车任务接受、现场范围校验与证据入库 | ✅ 已完成 |
-| Godot 场景及服务端联调 | 🚧 进行中 |
-| 完整任务提交、物品校验与一次性奖励 | ⏳ 待完成 |
-| NPC 查询事实、出示证据与受限行动工具 | ⏳ 待完成 |
-| 重要事件驱动的导演 Agent | ⏳ 待完成 |
-| 长期记忆、成本控制与降级策略 | ⏳ 待完成 |
+| Godot 网页对话、调查、背包和报价面板 | 已有实现；部署后需按实际网页验收 |
+| 凭证领取、任务提交、物品校验与一次性奖励 | 已有实现 |
+| NPC 已知事实、委托查询与维修报价工具 | 已有实现；不等于完整出示证据或物品交换系统 |
+| 维修报价取得、转交和双方确认 | 已有实现 |
+| 维修耗材、付款、游戏时间结算及货物装载/运输服务 | 已有规则实现；不等于全部玩法已在客户端接通 |
+| 邀请、NPC 自主回应、会面移动与位置插值 | 已有实现 |
+| 会面发言查询、旁听面板与插话接口 | 已有实现；需结合实际部署验证体验 |
+| 自动报价评估、反报价及有限导演编排 | 已有基础事件链与 PlanDiscussion |
+| 马丁的持久化维修需求、罗兰的合法修法目录 | 待实现：当前下一步 |
+| 导演具体问题送达、基于新条件的进展判断 | 待完善 |
+| 协商协议自动接通维修执行及结果展示 | 待完成完整闭环 |
+| 导演游戏价值的连续场景验收 | 待完成，不能以模型调用成功替代 |
+| NPC 长期记忆、模型分级与完整降级策略 | 待完善；已有超时和调用预算不代表全部完成 |
 
-> 当前仓库主要包含 Go 游戏服务与 Agent 基础设施；Godot 客户端和 Linux 部署环境不在本仓库中。上表以当前代码为准，不把规划中的能力计为已完成。
+> Godot 客户端源码位于 `frontend/`。Linux 的进程、存档和网页导出包属于部署状态，须单独核对。
+> 当前 `agreed` 只表示协议成立，不表示已扣款、开工或修好。实际货车维修完成状态为 `ready`。
 
 ## 技术栈
 
@@ -104,7 +120,7 @@ $env:BASE_URL = "https://your-endpoint.example/v1"
 ### 2. 启动游戏服务
 
 ```powershell
-go run ./cmd
+go run .
 ```
 
 服务默认监听 `http://127.0.0.1:8080`。首次启动会根据 `config/town/town.json` 创建 `data/game.db`；后续启动会保留已有存档。
@@ -152,6 +168,17 @@ POST /api/npcs/:npcID/chat/stream
 | `GET` | `/api/quests/:questID` | 查询任务定义与玩家进度 |
 | `POST` | `/api/quests/:questID/accept` | 接受任务 |
 | `POST` | `/api/investigation-points/abandoned_cart/inspect` | 调查废弃货车并记录证据 |
+| `POST` | `/api/investigation-points/abandoned_cart/claim` | 领取货物凭证 |
+| `GET` | `/api/player/inventory` | 查询背包 |
+| `POST` | `/api/quests/:questID/complete` | 交付凭证并结算奖励 |
+| `GET` | `/api/player/repair-proposals` | 查询玩家取得的报价卡 |
+| `POST` | `/api/npcs/:npcID/repair-proposals/:proposalID/deliver` | 转交报价 |
+| `POST` | `/api/negotiations` | 发起会面邀请 |
+| `GET` | `/api/negotiations/:id` | 查询会面、公开发言和当前报价 |
+| `POST` | `/api/negotiations/:id/messages` | 会面中插话 |
+| `POST` | `/api/negotiations/:id/cancel` | 明确取消会面 |
+| `GET` | `/api/player/negotiations/latest` | 查询最近会面 |
+| `GET` | `/api/npcs/positions` | 查询 NPC 权威位置 |
 
 当前接口使用固定的开发身份 `town-1 / player-1`，尚未实现生产级账号与鉴权。
 
@@ -159,12 +186,15 @@ POST /api/npcs/:npcID/chat/stream
 
 ```text
 .
-├── cmd/                         # 游戏 HTTP 服务入口
+├── main.go                      # 游戏 HTTP 服务及后台任务入口
+├── frontend/                    # Godot 项目和网页交互脚本
 ├── config/town/                 # 世界、玩家与 NPC 初始配置
 ├── internal/agent/engine/       # 可复用的模型—工具执行核心
 ├── internal/game/               # 权威状态、任务、调查与 SQLite 存储
 ├── internal/handler/            # HTTP 参数校验与响应映射
 ├── internal/npc/                # NPC 提示词、Agent 与对话服务
+├── internal/director/           # 导演计划生成与旧协调事件处理
+├── internal/negotiation/        # 邀请、移动与自主协商后台调度
 ├── internal/rouster/            # Gin 路由注册
 └── docs/                        # 开发大纲与早期技术方案
 ```
@@ -180,11 +210,16 @@ Agent Engine 使用假模型覆盖两条关键路径：直接文本回复，以�
 
 ## 路线图
 
-1. 完成 Godot 流式对话展示和异常处理。
-2. 补齐固定调查故事的任务、物品、证据、知识范围和奖励闭环。
-3. 为 NPC 接入事实查询、行动条件查询和受限行动申请工具。
-4. 以重要游戏事件触发导演 Agent，并由 GameService 校验、执行其计划。
-5. 加入长期记忆、模型分级、缓存、预算和不可用时的玩法降级。
+1. 建立马丁的真实维修需求与罗兰的两种合法修法，保留旧存档。
+2. 将修法和需求版本接入首次报价、反报价、确认和执行的统一校验。
+3. 按角色认知范围注入需求/能力，让导演提出具体、有来源的澄清或反报价请求。
+4. 自动送达并触发 NPC 回应，依据新信息调整安排；直接接受不调用导演，无进展则停止。
+5. 接通协议后的合法维修执行、公开结果展示及连续场景验收。
+
+马丁决定自己的需求和付款偏好，罗兰决定修法与接单条件；玩家无需代填协调目标。
+后续以 [`docs/npc-negotiation-implementation-guide.md`](docs/npc-negotiation-implementation-guide.md)
+中的 **2026-11-09 正式实施基线**为准，按第 12 节实施、第 13～14 节验收。
+这些本地文档和 AGENTS.md 当前被 Git 忽略，普通推送不会自动同步它们。
 
 详细方向见 [`docs/cybertown-development-outline.md`](docs/cybertown-development-outline.md)。早期架构讨论保留在 [`docs/medieval-town-agent-plan.md`](docs/medieval-town-agent-plan.md)，如有冲突，以当前开发大纲和实际代码为准。
 
