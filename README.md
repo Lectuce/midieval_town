@@ -124,18 +124,20 @@ $env:BASE_URL = "https://your-endpoint.example/v1"
 go run .
 ```
 
-服务默认监听 `http://127.0.0.1:8080`。首次启动会根据 `config/town/town.json` 创建 `data/game.db`；后续启动会保留已有存档。
+服务默认监听 `http://127.0.0.1:18080`。可通过 `SERVER_ADDR` 覆盖，例如
+`SERVER_ADDR=127.0.0.1:9000 go run .`。首次启动会根据 `config/town/town.json`
+创建 `data/game.db`；后续启动会保留已有存档。
 
 ### 3. 验证核心接口
 
 ```powershell
 # 查询玩家
-Invoke-RestMethod http://127.0.0.1:8080/api/player
+Invoke-RestMethod http://127.0.0.1:18080/api/player
 
 # 接受货车调查任务
 Invoke-RestMethod `
   -Method Post `
-  http://127.0.0.1:8080/api/quests/missing_iron_cart/accept
+  http://127.0.0.1:18080/api/quests/missing_iron_cart/accept
 
 # 与商人对话
 $body = @{
@@ -147,7 +149,7 @@ Invoke-RestMethod `
   -Method Post `
   -ContentType "application/json" `
   -Body $body `
-  http://127.0.0.1:8080/api/npcs/merchant/chat
+  http://127.0.0.1:18080/api/npcs/merchant/chat
 ```
 
 流式对话端点为：

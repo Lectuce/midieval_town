@@ -131,7 +131,7 @@ func refresh(after_claim: bool = false, success_context: String = "") -> void:
 	status.text = "领取成功，正在刷新背包…" if claim_refresh_pending else "正在读取背包…"
 	var url := player_api_url.trim_suffix("/") + "/inventory"
 	if url.begins_with("/"):
-		var origin := str(JavaScriptBridge.eval("window.location.origin")) if OS.has_feature("web") else str(ProjectSettings.get_setting("quest/base_url", "http://127.0.0.1:8080"))
+		var origin := str(JavaScriptBridge.eval("window.location.origin")) if OS.has_feature("web") else str(ProjectSettings.get_setting("quest/base_url", "http://127.0.0.1:18080"))
 		url = origin.trim_suffix("/") + url
 	request = HTTPRequest.new()
 	request.timeout = 15

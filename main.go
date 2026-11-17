@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -320,13 +321,18 @@ func main() {
 	r := gin.Default()
 	rouster.SetUpRousters(r, db, gameService, dialogueService)
 
+	serverAddr := os.Getenv("SERVER_ADDR")
+	if serverAddr == "" {
+		serverAddr = "127.0.0.1:18080"
+	}
+
 	server := &http.Server{
-		Addr:              "127.0.0.1:8080",
+		Addr:              serverAddr,
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Println("game server listening on http://127.0.0.1:8080")
+	log.Printf("game server listening on http://%s", serverAddr)
 
 	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

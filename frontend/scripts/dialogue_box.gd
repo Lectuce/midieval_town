@@ -248,7 +248,7 @@ func _request_quest(accept: bool) -> void:
 func _quest_base_url() -> String:
 	var base := str(ProjectSettings.get_setting("quest/base_url", "")).trim_suffix("/")
 	if base.is_empty():
-		base = str(JavaScriptBridge.eval("window.location.origin")) if OS.has_feature("web") else "http://127.0.0.1:8080"
+		base = str(JavaScriptBridge.eval("window.location.origin")) if OS.has_feature("web") else "http://127.0.0.1:18080"
 	return base
 
 func _send_quest_step(step: String) -> void:

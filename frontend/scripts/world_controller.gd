@@ -191,7 +191,7 @@ func _ready() -> void:
 	npc_sync.name = "NPCPositionSync"
 	npc_sync.world_root = self
 
-	var base_url := "http://127.0.0.1:8080"
+	var base_url := "http://127.0.0.1:18080"
 
 	if OS.has_feature("web"):
 		base_url = str(
