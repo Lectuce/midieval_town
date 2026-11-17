@@ -535,6 +535,24 @@ CREATE TABLE IF NOT EXISTS negotiation_event_receipts (
         )
 );
 
+CREATE TABLE IF NOT EXISTS repair_needs (
+    world_id TEXT NOT NULL,
+    cart_id TEXT NOT NULL,
+    payer_npc_id TEXT NOT NULL,
+    purpose TEXT NOT NULL CHECK (length(trim(purpose)) > 0),
+    needed_by TEXT,
+    deadline_kind TEXT NOT NULL CHECK (deadline_kind IN ('none', 'preferred', 'hard')),
+    preferred_price_coins INTEGER NOT NULL CHECK (typeof(preferred_price_coins) = 'integer' AND preferred_price_coins >= 0),
+    max_price_coins INTEGER NOT NULL CHECK (typeof(max_price_coins) = 'integer' AND max_price_coins >= preferred_price_coins),
+    priority TEXT NOT NULL CHECK (priority IN ('cost', 'time', 'balanced')),
+    source TEXT NOT NULL CHECK (length(trim(source)) > 0),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (typeof(revision) = 'integer' AND revision >= 1),
+    PRIMARY KEY (world_id, cart_id, payer_npc_id),
+    CHECK ((deadline_kind = 'none' AND needed_by IS NULL) OR
+        (deadline_kind IN ('preferred', 'hard') AND needed_by IS NOT NULL AND length(trim(needed_by)) > 0)),
+    FOREIGN KEY (world_id, cart_id) REFERENCES carts(world_id, id),
+    FOREIGN KEY (world_id, payer_npc_id) REFERENCES npcs(world_id, id)
+);
 `
 
 func OpenDatabase(ctx context.Context, path string) (*sql.DB, error) {

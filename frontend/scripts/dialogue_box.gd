@@ -2,7 +2,7 @@ extends CanvasLayer
 
 const MAX_MESSAGES := 60
 const QUEST_ID := "missing_iron_cart"
-const INPUT_HINT := "Enter：发送    Esc：结束对话    输入时 E 和方向键用于编辑文字"
+const INPUT_HINT := "Enter 发送 · Esc 结束对话"
 var stream := preload("res://scripts/web_dialogue_stream.gd").new()
 var repair_ui := preload("res://scripts/repair_proposal_panel.gd").new()
 var waiting: bool = false
@@ -34,6 +34,9 @@ var quest_position: Dictionary = {}
 var quest_expected_revision := 0
 var quest_completion_message := ""
 var quest_reconcile_reason := ""
+var pages: Array[Control] = []
+var page_buttons: Array[Button] = []
+var input_row: HBoxContainer
 
 func _ready() -> void:
 	add_child(stream)
@@ -41,48 +44,82 @@ func _ready() -> void:
 	layer = 20
 	panel = PanelContainer.new()
 	add_child(panel)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	panel.anchor_left = 0.08
-	panel.anchor_right = 0.92
-	panel.offset_top = -330
-	panel.offset_bottom = -24
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("202635")
-	style.border_color = Color("b2c0cd")
-	style.set_border_width_all(2)
-	style.content_margin_left = 24
-	style.content_margin_right = 24
-	style.content_margin_top = 16
-	style.content_margin_bottom = 16
+	style.bg_color = Color("202733f5")
+	style.border_color = Color("887447")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(12)
+	style.shadow_color = Color(0, 0, 0, 0.35)
+	style.shadow_size = 10
+	style.content_margin_left = 18
+	style.content_margin_right = 18
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
 	panel.add_theme_stylebox_override("panel", style)
+	var theme := Theme.new()
+	theme.default_font_size = 16
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var button_style := StyleBoxFlat.new()
+		button_style.bg_color = Color("333d4d") if state != "pressed" else Color("514832")
+		if state == "hover":
+			button_style.bg_color = Color("455166")
+		button_style.set_corner_radius_all(6)
+		button_style.content_margin_left = 12
+		button_style.content_margin_right = 12
+		button_style.content_margin_top = 5
+		button_style.content_margin_bottom = 5
+		if state == "focus":
+			button_style.bg_color = Color.TRANSPARENT
+			button_style.border_color = Color("dfc58b")
+			button_style.set_border_width_all(1)
+		theme.set_stylebox(state, "Button", button_style)
+	panel.theme = theme
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
+	column.add_theme_constant_override("separation", 8)
 	panel.add_child(column)
 	var header := HBoxContainer.new()
 	column.add_child(header)
 	title_label = Label.new()
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_label.add_theme_font_size_override("font_size", 22)
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title_label.add_theme_font_size_override("font_size", 20)
 	title_label.add_theme_color_override("font_color", Color("edcf89"))
 	header.add_child(title_label)
 	next_button = Button.new()
-	next_button.text = "听下一句"
+	next_button.text = "继续"
 	next_button.pressed.connect(advance)
 	header.add_child(next_button)
 	close_button = Button.new()
-	close_button.text = "结束对话"
+	close_button.text = "关闭"
 	close_button.pressed.connect(close)
 	header.add_child(close_button)
+	var navigation := HBoxContainer.new()
+	navigation.add_theme_constant_override("separation", 6)
+	column.add_child(navigation)
+	for page_name in ["对话", "委托", "维修协商"]:
+		var button := Button.new()
+		button.text = page_name
+		button.toggle_mode = true
+		button.pressed.connect(_select_page.bind(page_buttons.size()))
+		page_buttons.append(button)
+		navigation.add_child(button)
 	body_label = RichTextLabel.new()
 	body_label.bbcode_enabled = false
-	body_label.add_theme_font_size_override("normal_font_size", 20)
-	body_label.custom_minimum_size.y = 140
+	body_label.add_theme_font_size_override("normal_font_size", 18)
+	body_label.fit_content = false
 	body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_label.scroll_following = true
 	body_label.selection_enabled = true
 	column.add_child(body_label)
+	pages.append(body_label)
+	var quest_scroll := ScrollContainer.new()
+	quest_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	quest_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(quest_scroll)
+	pages.append(quest_scroll)
 	quest_panel = HBoxContainer.new()
-	column.add_child(quest_panel)
+	quest_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quest_scroll.add_child(quest_panel)
 	quest_label = Label.new()
 	quest_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quest_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -93,28 +130,59 @@ func _ready() -> void:
 	quest_button.pressed.connect(_on_quest_pressed)
 	quest_panel.add_child(quest_button)
 	quest_panel.hide()
-	column.add_child(repair_ui)
+	var repair_scroll := ScrollContainer.new()
+	repair_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	repair_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_child(repair_scroll)
+	pages.append(repair_scroll)
+	repair_ui.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	repair_scroll.add_child(repair_ui)
 	var row := HBoxContainer.new()
+	input_row = row
 	column.add_child(row)
 	input_field = LineEdit.new()
-	input_field.placeholder_text = "输入你想说的话，按 Enter 发送…"
+	input_field.placeholder_text = "说点什么…"
 	input_field.max_length = 256
 	input_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	input_field.custom_minimum_size.y = 40
-	input_field.add_theme_font_size_override("font_size", 20)
+	input_field.custom_minimum_size.y = 36
+	input_field.add_theme_font_size_override("font_size", 18)
 	input_field.text_submitted.connect(send_message)
 	row.add_child(input_field)
 	send_button = Button.new()
 	send_button.text = "发送"
-	send_button.custom_minimum_size.x = 80
+	send_button.custom_minimum_size.x = 64
 	send_button.pressed.connect(func(): send_message(input_field.text))
 	row.add_child(send_button)
 	footer_label = Label.new()
+	footer_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	footer_label.max_lines_visible = 2
 	footer_label.text = INPUT_HINT
-	footer_label.add_theme_font_size_override("font_size", 15)
+	footer_label.add_theme_font_size_override("font_size", 13)
 	footer_label.add_theme_color_override("font_color", Color("b2c0cd"))
 	column.add_child(footer_label)
+	get_viewport().size_changed.connect(_layout_panel)
+	_select_page(0)
+	_layout_panel.call_deferred()
 	panel.hide()
+
+func _select_page(index: int) -> void:
+	for i in range(pages.size()):
+		pages[i].visible = i == index
+		page_buttons[i].set_pressed_no_signal(i == index)
+	input_row.visible = index == 0
+	next_button.visible = index == 0
+	footer_label.text = INPUT_HINT if index == 0 else "滚动查看内容 · Esc 结束对话"
+	if index == 0 and active:
+		input_field.grab_focus.call_deferred()
+	_layout_panel.call_deferred()
+
+func _layout_panel() -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	var panel_width := minf(900.0, viewport_size.x - 24.0)
+	var panel_height := minf(360.0, viewport_size.y * 0.48)
+	panel.size = Vector2(panel_width, panel_height)
+	panel.position = Vector2((viewport_size.x - panel_width) * 0.5, viewport_size.y - panel_height - 12.0)
+	footer_label.visible = viewport_size.y >= 500.0
 
 func _input(event: InputEvent) -> void:
 	# Let Escape dismiss an IME candidate first, rather than closing the dialogue.
@@ -143,7 +211,9 @@ func open(npc: Node2D) -> void:
 	panel.show()
 	quest_panel.visible = str(npc.npc_id) == "merchant"
 	var has_repair_panel := str(npc.npc_id) in ["blacksmith", "merchant"]
-	panel.offset_top = -600 if has_repair_panel else -330
+	page_buttons[1].visible = quest_panel.visible
+	page_buttons[2].visible = has_repair_panel
+	_select_page(0)
 	repair_ui.open_for(str(npc.npc_id), _quest_base_url())
 	quest_status = ""
 	quest_completion_message = ""

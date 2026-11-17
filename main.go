@@ -63,6 +63,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := repair.ValidateRepairMethods(); err != nil {
+		log.Fatalf("validate repair methods: %v", err)
+	}
+	repairWorld, err := worldstate.GetWorld(ctx, db, config.World.ID)
+	if err != nil {
+		log.Fatalf("load repair world: %v", err)
+	}
+	// Initial personal preference, not an external contract or a player commitment.
+	// Persisted only once: restart must not extend the existing deadline.
+	neededBy := repairWorld.GameTime.Add(4 * time.Hour)
+	repairNeed, err := repair.InitRepairNeed(ctx, db, repair.RepairNeed{
+		WorldID: config.World.ID, CartID: transport.AbandonedCartID, PayerNPCID: "merchant",
+		Purpose:  "恢复货车的运输能力，运回现场剩余的铁矿。",
+		NeededBy: &neededBy, DeadlineKind: repair.DeadlinePreferred,
+		PreferredPriceCoins: 5, MaxPriceCoins: 10, Priority: repair.PriorityCost,
+		Source: "initial_repair_need_v1：马丁自己的用车计划与维修预算。", Revision: 1,
+	})
+	if err != nil {
+		log.Fatalf("initialize repair need: %v", err)
+	}
+	log.Printf("repair need loaded payer=%s revision=%d methods=%d", repairNeed.PayerNPCID, repairNeed.Revision, len(repair.RepairMethods()))
+
 	repairJob, err := repair.GetActiveRepairJob(
 		ctx,
 		db,

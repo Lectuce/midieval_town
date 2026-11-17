@@ -25,6 +25,8 @@ func _ready() -> void:
 	add_child(top)
 
 	_selector = OptionButton.new()
+	_selector.fit_to_longest_item = false
+	_selector.clip_text = true
 	_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_selector.item_selected.connect(_on_selected)
 	top.add_child(_selector)
